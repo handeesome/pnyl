@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LeanCloud 数据表初始化工具</title>
+    <script src="https://unpkg.com/leancloud-storage@4.15.2/dist/av-min.js"></script>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin: 20px 0;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 5px;
+            transition: transform 0.3s;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        .button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .progress {
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .step {
+            margin: 10px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .step.completed {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .step.error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 5px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .sdk-status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .sdk-loaded {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .sdk-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 LeanCloud 数据表初始化工具</h1>
+        
+        <div id="sdkStatus" class="sdk-status"></div>
+        
+        <div class="form-group">
+            <label for="appId">App ID:</label>
+            <input type="text" id="appId" placeholder="请输入你的 LeanCloud App ID">
+        </div>
+        
+        <div class="form-group">
+            <label for="appKey">App Key:</label>
+            <input type="text" id="appKey" placeholder="请输入你的 LeanCloud App Key">
+        </div>
+        
+        <div class="form-group">
+            <label for="serverUrl">Server URL:</label>
+            <input type="text" id="serverUrl" placeholder="请输入你的 LeanCloud Server URL">
+        </div>
+        
+        <button class="button" onclick="initializeTables()" id="initButton" disabled>等待 SDK 加载...</button>
+        
+        <div id="status"></div>
+        
+        <div class="progress" id="progressContainer" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+        </div>
+        
+        <div id="steps"></div>
+        
+        <div id="instructions" style="display: none;">
+            <h3>✅ 初始化完成！</h3>
+            <p>现在你可以：</p>
+            <ol>
+                <li>将这些配置信息复制到你的游戏代码中</li>
+                <li>重新运行你的教会团契大富翁游戏</li>
+                <li>数据表已经创建并且可以正常使用了</li>
+            </ol>
+            
+            <div class="code-block" id="configCode"></div>
+        </div>
+    </div>
+
+    <script>
+        let Player, GameState, Submission;
+        let sdkLoaded = false;
+        
+        // 检查 SDK 是否加载
+        function checkSDK() {
+            const sdkStatusDiv = document.getElementById('sdkStatus');
+            const initButton = document.getElementById('initButton');
+            
+            if (typeof AV !== 'undefined') {
+                sdkLoaded = true;
+                sdkStatusDiv.innerHTML = '✅ LeanCloud SDK 加载成功';
+                sdkStatusDiv.className = 'sdk-status sdk-loaded';
+                initButton.disabled = false;
+                initButton.textContent = '初始化数据表';
+            } else {
+                sdkStatusDiv.innerHTML = '❌ LeanCloud SDK 加载失败，请检查网络连接或刷新页面重试';
+                sdkStatusDiv.className = 'sdk-status sdk-error';
+                initButton.disabled = true;
+                initButton.textContent = 'SDK 加载失败';
+            }
+        }
+        
+        async function initializeTables() {
+            if (!sdkLoaded) {
+                showStatus('LeanCloud SDK 未正确加载，请刷新页面重试', 'error');
+                return;
+            }
+            
+            const appId = document.getElementById('appId').value.trim();
+            const appKey = document.getElementById('appKey').value.trim();
+            const serverUrl = document.getElementById('serverUrl').value.trim();
+            
+            if (!appId || !appKey || !serverUrl) {
+                showStatus('请填写完整的 LeanCloud 配置信息', 'error');
+                return;
+            }
+            
+            const button = document.getElementById('initButton');
+            button.disabled = true;
+            button.textContent = '正在初始化...';
+            
+            const statusDiv = document.getElementById('status');
+            const stepsDiv = document.getElementById('steps');
+            const progressContainer = document.getElementById('progressContainer');
+            const progressFill = document.getElementById('progressFill');
+            
+            statusDiv.innerHTML = '';
+            stepsDiv.innerHTML = '';
+            progressContainer.style.display = 'block';
+            
+            try {
+                // 初始化 LeanCloud
+                addStep('正在连接 LeanCloud...', 'info');
+                updateProgress(10);
+                
+                AV.init({
+                    appId: appId,
+                    appKey: appKey,
+                    serverURL: serverUrl
+                });
+                
+                // 定义数据模型
+                Player = AV.Object.extend('Player');
+                GameState = AV.Object.extend('GameState');
+                Submission = AV.Object.extend('Submission');
+                
+                addStep('✅ 成功连接到 LeanCloud', 'completed');
+                updateProgress(25);
+                
+                // 创建示例数据来初始化表
+                addStep('正在创建 Player 表...', 'info');
+                updateProgress(40);
+                
+                const testPlayer = new Player();
+                testPlayer.set('name', '测试玩家');
+                testPlayer.set('gender', '男');
+                testPlayer.set('position', 0);
+                testPlayer.set('isHost', false);
+                testPlayer.set('avatarColor', '#ff5722');
+                testPlayer.set('avatarInitial', '测');
+                await testPlayer.save();
+                
+                addStep('✅ Player 表创建成功', 'completed');
+                updateProgress(55);
+                
+                // 创建 GameState 表
+                addStep('正在创建 GameState 表...', 'info');
+                updateProgress(70);
+                
+                const testGameState = new GameState();
+                testGameState.set('isStarted', false);
+                testGameState.set('isEnded', false);
+                await testGameState.save();
+                
+                addStep('✅ GameState 表创建成功', 'completed');
+                updateProgress(85);
+                
+                // 创建 Submission 表
+                addStep('正在创建 Submission 表...', 'info');
+                updateProgress(95);
+                
+                const testSubmission = new Submission();
+                testSubmission.set('playerId', testPlayer.id);
+                testSubmission.set('playerName', '测试玩家');
+                testSubmission.set('position', 1);
+                testSubmission.set('taskTitle', '测试任务');
+                testSubmission.set('content', '测试内容');
+                testSubmission.set('type', 'text');
+                await testSubmission.save();
+                
+                addStep('✅ Submission 表创建成功', 'completed');
+                updateProgress(100);
+                
+                // 清理测试数据
+                addStep('正在清理测试数据...', 'info');
+                await testPlayer.destroy();
+                await testGameState.destroy();
+                await testSubmission.destroy();
+                
+                addStep('✅ 所有数据表初始化完成！', 'completed');
+                
+                showStatus('🎉 数据表初始化成功！现在你可以正常使用游戏了。', 'success');
+                
+                // 显示配置代码
+                showInstructions(appId, appKey, serverUrl);
+                
+            } catch (error) {
+                console.error('初始化失败:', error);
+                addStep(`❌ 初始化失败: ${error.message}`, 'error');
+                showStatus(`初始化失败: ${error.message}`, 'error');
+                
+                // 显示可能的解决方案
+                showTroubleshooting(error);
+            } finally {
+                button.disabled = false;
+                button.textContent = '重新初始化数据表';
+            }
+        }
+        
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+        
+        function addStep(message, type) {
+            const stepsDiv = document.getElementById('steps');
+            const step = document.createElement('div');
+            step.className = `step ${type}`;
+            step.textContent = message;
+            stepsDiv.appendChild(step);
+        }
+        
+        function updateProgress(percent) {
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percent + '%';
+        }
+        
+        function showInstructions(appId, appKey, serverUrl) {
+            const instructionsDiv = document.getElementById('instructions');
+            instructionsDiv.style.display = 'block';
+            
+            const configCode = document.getElementById('configCode');
+            configCode.textContent = `// 将这些配置信息复制到你的游戏代码中
+const APP_ID = "${appId}";
+const APP_KEY = "${appKey}";
+const SERVER_URL = "${serverUrl}";`;
+        }
+        
+        function showTroubleshooting(error) {
+            const stepsDiv = document.getElementById('steps');
+            
+            const troubleshootingDiv = document.createElement('div');
+            troubleshootingDiv.innerHTML = `
+                <div class="step error">
+                    <strong>可能的解决方案：</strong><br>
+                    1. 检查 App ID、App Key 和 Server URL 是否正确<br>
+                    2. 确保 LeanCloud 应用状态正常<br>
+                    3. 检查网络连接是否正常<br>
+                    4. 如果是权限问题，请检查应用设置中的安全设置<br>
+                    5. 确保使用的是国际版 LeanCloud（leancloud.app）还是国内版（leancloud.cn）
+                </div>
+            `;
+            stepsDiv.appendChild(troubleshootingDiv);
+        }
+        
+        // 页面加载完成后检查 SDK 并尝试读取配置
+        document.addEventListener('DOMContentLoaded', function() {
+            // 稍等一下让 SDK 完全加载
+            setTimeout(checkSDK, 100);
+            
+            // 如果能从URL参数或其他方式获取配置，可以预填写
+            const urlParams = new URLSearchParams(window.location.search);
+            const appId = urlParams.get('appId');
+            const appKey = urlParams.get('appKey');
+            const serverUrl = urlParams.get('serverUrl');
+            
+            if (appId) document.getElementById('appId').value = appId;
+            if (appKey) document.getElementById('appKey').value = appKey;
+            if (serverUrl) document.getElementById('serverUrl').value = serverUrl;
+        });
+        
+        // 监听 SDK 加载错误
+        window.addEventListener('error', function(e) {
+            if (e.filename && e.filename.includes('leancloud-storage')) {
+                const sdkStatusDiv = document.getElementById('sdkStatus');
+                const initButton = document.getElementById('initButton');
+                
+                sdkStatusDiv.innerHTML = '❌ LeanCloud SDK 加载失败：网络错误或资源不可用';
+                sdkStatusDiv.className = 'sdk-status sdk-error';
+                initButton.disabled = true;
+                initButton.textContent = 'SDK 加载失败';
+            }
+        });
+    </script>
+</body>
+</html>

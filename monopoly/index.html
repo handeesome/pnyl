@@ -1,0 +1,5527 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent" />
+    <meta name="theme-color" content="#667eea" />
+    <title>教会团契大富翁</title>
+    <script src="//unpkg.com/leancloud-storage@4.15.2/dist/av-min.js"></script>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <!-- 游戏题目选择弹窗 -->
+  <div class="task-modal" id="gameQuestionModal">
+    <div class="task-content">
+      <h3>选择线下游戏</h3>
+      <p>请选择要进行的线下游戏类型</p>
+      <div
+        style="
+          margin: 20px 0;
+          display: flex;
+          flex-direction: column;
+          gap: 15px;
+        ">
+        <button class="button" onclick="selectGameType('emoji')"
+          >🎯 看图识字</button
+        >
+        <button class="button" onclick="selectGameType('charades')"
+          >🎭 你比划我猜</button
+        >
+        <button class="button" onclick="selectGameType('bible')"
+          >📖 圣经问题</button
+        >
+        <button class="button" onclick="selectGameType('spiritual')"
+          >🙏 属灵问题</button
+        >
+      </div>
+      <button class="button" onclick="closeGameQuestionModal()">关闭</button>
+    </div>
+  </div>
+
+  <!-- 题目显示弹窗 -->
+  <div class="task-modal" id="questionDisplayModal">
+    <div class="task-content" style="max-width: 600px">
+      <h3 id="questionGameType">题目</h3>
+      <div id="questionContent" style="margin: 20px 0; min-height: 100px"></div>
+      <div id="actionButtons"></div>
+    </div>
+  </div>
+  <body>
+    <div class="container">
+      <!-- 入口选择界面 -->
+      <div class="screen active" id="welcomeScreen">
+        <h1>🎲 教会团契大富翁</h1>
+        <p style="margin-bottom: 30px; font-size: 18px">欢迎来到信仰之路！</p>
+        <button class="button" onclick="showScreen('hostScreen')"
+          >我是主持人</button
+        >
+        <button class="button" onclick="showScreen('playerRegisterScreen')"
+          >我是玩家</button
+        >
+      </div>
+
+      <!-- 玩家注册界面 -->
+      <div class="screen" id="playerRegisterScreen">
+        <h2>玩家注册</h2>
+        <form id="playerForm">
+          <div class="form-group">
+            <label for="playerName">姓名：</label>
+            <input type="text" id="playerName" required />
+          </div>
+
+          <div class="form-group">
+            <label for="playerGender">性别：</label>
+            <select id="playerGender" required>
+              <option value="">请选择</option>
+              <option value="男">男</option>
+              <option value="女">女</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="playerAvatar">头像（可选）：</label>
+            <input type="file" id="playerAvatar" accept="image/*" />
+          </div>
+
+          <div class="avatar-preview" id="avatarPreview"></div>
+
+          <button type="submit" class="button">加入游戏</button>
+          <button
+            type="button"
+            class="button"
+            onclick="showScreen('welcomeScreen')"
+            >返回</button
+          >
+        </form>
+      </div>
+
+      <!-- 玩家游戏界面 -->
+      <div class="screen" id="playerGameScreen">
+        <h2 id="playerWelcome">欢迎，玩家！</h2>
+        <div id="gameStatus" style="margin: 20px 0; font-size: 18px"
+          >等待游戏开始...</div
+        >
+
+        <div class="board-mobile" id="playerBoard"></div>
+
+        <div class="dice-container" id="diceContainer" style="display: none">
+          <div class="dice" id="diceResult">?</div>
+          <br />
+          <button class="button" id="rollDiceBtn" onclick="rollDice()" disabled
+            >掷骰子</button
+          >
+          <button
+            class="button"
+            id="viewTaskBtn"
+            onclick="reopenTask()"
+            style="display: none"
+            >查看当前任务</button
+          >
+        </div>
+
+        <button class="button" onclick="showScreen('welcomeScreen')"
+          >离开游戏</button
+        >
+      </div>
+
+      <!-- 主持人界面 -->
+      <div class="screen" id="hostScreen">
+        <h2>主持人控制台</h2>
+        <div style="margin: 20px 0">
+          <button class="button" id="startGameBtn" onclick="startGame()"
+            >开始游戏</button
+          >
+          <button class="button" id="endGameBtn" onclick="endGame()" disabled
+            >结束游戏</button
+          >
+          <button class="button" onclick="showSubmissions()"
+            >查看提交内容</button
+          >
+          <button class="button" onclick="showGameQuestionModal()"
+            >🎮 出题目</button
+          >
+          <button class="button" onclick="showAddTaskModal()">添加任务</button>
+
+          <button
+            class="button"
+            onclick="clearAllData()"
+            style="background: #f44336"
+            >清除所有数据</button
+          >
+        </div>
+
+        <div id="gameInfo" style="margin: 20px 0"></div>
+
+        <div class="board" id="hostBoard"></div>
+
+        <div class="players-list" id="playersList"></div>
+
+        <button class="button" onclick="showScreen('welcomeScreen')"
+          >返回</button
+        >
+      </div>
+
+      <!-- 提交内容查看界面 -->
+      <div class="screen" id="submissionsScreen">
+        <h2>玩家提交内容</h2>
+        <div class="submissions-section" id="submissionsContent"></div>
+        <button class="button" onclick="showScreen('hostScreen')"
+          >返回主持人界面</button
+        >
+      </div>
+
+      <!-- 任务弹窗 -->
+      <div class="task-modal" id="taskModal">
+        <div class="task-content">
+          <h3 id="taskTitle">任务</h3>
+          <p id="taskDescription"></p>
+          <div id="taskInput"></div>
+          <div style="margin-top: 20px">
+            <button class="button" id="completeTaskBtn" onclick="completeTask()"
+              >完成任务</button
+            >
+            <button class="button" onclick="closeTaskModal()">关闭</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 主持人任务详情弹窗 -->
+      <div class="host-task-modal" id="hostTaskModal">
+        <div class="host-task-content">
+          <div class="host-task-header">
+            <h3 id="hostTaskTitle">任务详情</h3>
+          </div>
+          <div class="host-task-body">
+            <p id="hostTaskDescription">任务描述</p>
+            <div id="hostTaskType" class="host-task-type">任务类型</div>
+          </div>
+          <div style="margin-top: 20px; text-align: center">
+            <button class="button" onclick="closeHostTaskModal()">关闭</button>
+          </div>
+        </div>
+      </div>
+      <!-- 添加任务选择弹窗 -->
+      <div class="task-modal" id="addTaskModal">
+        <div class="task-content">
+          <h3>添加任务</h3>
+          <p>请选择要添加内容的格子号码</p>
+          <div style="margin: 20px 0">
+            <div class="form-group">
+              <label for="hostTaskNumber">格子号码 (0-31):</label>
+              <input
+                type="number"
+                id="hostTaskNumber"
+                placeholder="请输入格子号码"
+                min="0"
+                max="31"
+                style="width: 100%; padding: 10px" />
+            </div>
+          </div>
+          <div style="margin-top: 20px">
+            <button class="button" onclick="startAddTask()">开始任务</button>
+            <button class="button" onclick="closeAddTaskModal()">取消</button>
+          </div>
+        </div>
+      </div>
+      <!-- 主持人任务输入弹窗 -->
+      <div class="task-modal" id="hostTaskInputModal">
+        <div class="task-content">
+          <h3 id="hostTaskInputTitle">主持人任务输入</h3>
+          <p id="hostTaskInputDescription"></p>
+          <div id="hostTaskInputArea"></div>
+          <div style="margin-top: 20px">
+            <button
+              class="button"
+              id="submitHostTaskBtn"
+              onclick="submitHostTask()"
+              >提交任务</button
+            >
+            <button class="button" onclick="closeHostTaskInputModal()"
+              >关闭</button
+            >
+          </div>
+        </div>
+      </div>
+
+      <!-- 全屏头像裁剪器 -->
+      <div class="avatar-cropper-overlay" id="avatarCropperOverlay">
+        <div class="cropper-hint">📱 拖拽调整位置 · 双指缩放调整大小</div>
+        <div class="cropper-container">
+          <img class="cropper-image" id="cropperImage" alt="" />
+          <div class="cropper-circle"></div>
+        </div>
+        <div class="cropper-controls">
+          <button class="button" onclick="confirmAvatarCrop()">确定</button>
+          <button class="button" onclick="cancelAvatarCrop()">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // LeanCloud 配置 - 请替换为你的配置
+      const APP_ID = "YOUR_LEANCLOUD_APP_ID";
+      const APP_KEY = "YOUR_LEANCLOUD_APP_KEY";
+      const SERVER_URL = "YOUR_LEANCLOUD_SERVER_URL";
+
+      // 全局变量
+      let currentPlayer = null;
+      let gameState = null;
+      let players = [];
+      let isHost = false;
+      let currentTask = null;
+      let selectedFriend = null;
+      let drawingColor = "#000000";
+      let drawingTool = "pen";
+      let avatarCropData = null;
+      let countdownInterval = null;
+      let countdownStartTime = null;
+      let cropperState = {
+        scale: 1,
+        x: 0,
+        y: 0,
+        isDragging: false,
+        startX: 0,
+        startY: 0,
+        lastTouchDistance: 0,
+        isZooming: false,
+      };
+
+      // LeanCloud 对象定义
+      let Player, GameState, Submission;
+      let isAnimating = false;
+
+      // 任务数据
+      const tasks = {
+        0: {
+          title: "🚪 踏上恩典之门",
+          story:
+            "你站在教会门口，阳光透过彩色玻璃洒在地上，内心既紧张又期待。这里似乎有种特别的宁静，让你忍不住想要走进去探索这个充满神秘色彩的地方。",
+          content:
+            "欢迎来到信仰之路！愿这段旅程带给你属灵的成长。点击完成开始你的信仰探索。",
+          type: "simple",
+        },
+        1: {
+          title: "🏠 初进神的家",
+          story:
+            "踏进教会大堂，你被眼前的景象震撼了。高高的天花板、庄严的十字架、温暖的灯光，还有友善的笑容。一位热情的弟兄姐妹主动上前，准备带你熟悉这个新环境。",
+          content: "第一次来到教会！请到任务区完成看图识字游戏，熟悉教会环境。",
+          type: "emoji_game",
+        },
+        2: {
+          title: "📖 初尝神话语",
+          story:
+            "你坐在主日学教室里，老师正在分享圣经的话语。虽然有些内容你还不完全理解，但那些充满智慧和爱的话语深深触动了你的心，让你第一次感受到神话语的力量。",
+          content:
+            "在主日学中认真听讲的你学到了很多！请写出一节你能背诵的经文。",
+          type: "text",
+        },
+        3: {
+          title: "👂 聆听圣经故事",
+          story:
+            "你来到了主日学教室，温和的老师正在给孩子们讲述耶稣的故事。你被这些充满爱与希望的故事深深吸引，内心开始对这位神的儿子产生好奇与敬畏。",
+          content: "通过圣经故事了解神的作为！请到NPC处回答关于教会的问题。",
+          type: "offline",
+        },
+        4: {
+          title: "🎭 圣诞献艺",
+          story:
+            "圣诞节到了！教会里张灯结彩，到处洋溢着节日的喜悦。你被邀请参与圣诞节目的准备工作，这是你第一次有机会用自己的才华来庆祝耶稣的降生。",
+          content: "圣诞节到了！请为团契设计一个创意Logo，展现你的才华。",
+          type: "draw",
+        },
+        5: {
+          title: "🤝 校园相遇",
+          story:
+            "在学校的走廊里，你遇到了一位看起来有些孤单的新同学。想起在教会学到的关于爱与接纳的教导，你决定主动上前与他打招呼，也许这就是神安排的相遇。",
+          content:
+            "在校园遇到新同学是神的安排！与这位朋友握手，并说：「你好，我是XXX，很高兴认识你，请问你的名字是？」",
+          type: "offline",
+        },
+        6: {
+          title: "👥 同行邀请",
+          story:
+            "经过几天的相处，你和新朋友建立了深厚的友谊。你想起牧师说过要成为别人的祝福，于是决定邀请这位朋友一起来教会，分享你在这里找到的喜乐和平安。",
+          content:
+            "邀请新朋友来教会真是美好！你们需要合作完成「你比划我猜」游戏，答对3题即可过关。",
+          type: "offline",
+        },
+        7: {
+          title: "🤔 信仰思辨",
+          story:
+            "生物课上，老师详细讲解了进化论，这让你内心产生了疑惑。科学与信仰是否矛盾？你开始思考这个深刻的问题，想要找到信仰与理性之间的平衡点。",
+          content:
+            "学校开始教进化论，这让你开始思考信仰问题。请列出相信和质疑基督教的理由各两点。",
+          type: "text",
+        },
+        8: {
+          title: "🎢 世俗诱惑",
+          story:
+            "周末到了，同学们兴奋地邀请你去新开的游乐园。虽然你知道今天有团契聚会，但游乐园的诱惑实在太大了。最终，你选择了跟同学们一起去享受世俗的快乐。",
+          content:
+            "同学邀请你周末去游乐园，你选择了世界的快乐。暂停2分钟反思这个选择。",
+          type: "wait",
+        },
+        9: {
+          title: "🎵 敬拜带领",
+          story:
+            "经过一段时间的成长，你在团契中越来越活跃。今天轮到你带领敬拜了！虽然有些紧张，但你也很兴奋能够用音乐来赞美神，带领大家一起进入神的同在中。",
+          content:
+            "轮到你带领敬拜了！请制作一个有主题的赞美诗歌单，包含5首歌曲。",
+          type: "text",
+        },
+        10: {
+          title: "🎯 娱乐试探",
+          story:
+            "又一个周末，你面临选择：是去KTV唱歌还是参加教会聚会？最终你选择了娱乐场所，但在喧闹的环境中，你却感到内心空虚，开始怀念教会里的宁静与充实。",
+          content:
+            "周末选择去娱乐场所而不是聚会？请与NPC玩UNO牌，出完牌才能继续前行。",
+          type: "offline",
+        },
+        11: {
+          title: "😔 人生低谷",
+          story:
+            "这段时间诸事不顺，考试失利、朋友误解、家庭矛盾接踵而来。你感到沮丧和无助，开始质疑神是否真的在乎你。这是信仰路上必经的低谷期，需要重新站起来。",
+          content:
+            "遇到糟心事让你灰心丧气！做10个深蹲释放压力，然后退后一格重新开始。",
+          type: "penalty",
+        },
+        12: {
+          title: "💝 彼此扶持",
+          story:
+            "在教会里，你看到一位弟兄姐妹因为工作压力而愁眉不展。想起圣经教导我们要彼此相爱、互相扶持，你决定主动关心这位肢体，为他送上温暖的关怀。",
+          content:
+            "看到基督徒朋友需要鼓励！请到厨房为这位朋友倒杯水，并说：「上帝祝福你！」",
+          type: "offline",
+        },
+        13: {
+          title: "😴 分心走神",
+          story:
+            "主日崇拜中，牧师正在讲道，但你的思绪却飘到了昨天的球赛、明天的考试、还有朋友圈的八卦。当你回过神来时，发现自己错过了重要的信息，感到有些惭愧。",
+          content:
+            "听道时走神了？请到NPC处完成专注力训练（把倒下的瓶子立正）。",
+          type: "offline",
+        },
+        14: {
+          title: "⛰️ 夏令营感悟",
+          story:
+            "夏令营的几天让你收获满满。在美丽的山间，你体验到了神创造的奇妙；在团契生活中，你感受到了弟兄姐妹的真诚友爱。这次经历让你对信仰有了更深的认识和感悟。",
+          content:
+            "参加夏令营后深有感触！请写出一个你觉得信仰上需要改进的地方（30字以内）。",
+          type: "text",
+        },
+        15: {
+          title: "🎲 恩赐操练",
+          story:
+            "团契活动时间到了！今天大家要通过游戏来学习合作与竞争的平衡。你发现原来在游戏中也能学到属灵的功课，每个人都有不同的恩赐，需要互相配搭才能取得好成绩。",
+          content:
+            "在游戏中学习合作与竞争！请与NPC玩Cabo游戏，获得第一名才能过关。",
+          type: "offline",
+        },
+        16: {
+          title: "🫂 同性安慰",
+          story:
+            "你注意到一位同性的弟兄姐妹最近心情很低落，似乎遇到了什么困难。基于在教会学到的爱与关怀，你决定主动上前给予安慰，让他知道在这个大家庭里他并不孤单。",
+          content:
+            "看到同性朋友伤心难过！请与这位朋友拥抱，并说：「你不是一个人，我们的天父一直在。」",
+          type: "offline",
+        },
+        17: {
+          title: "🎯 技巧挑战",
+          story:
+            "团契举办技巧比赛！这不仅是身体的挑战，更是心理素质的考验。你想起圣经中说要凭信心，不凭眼见，决定全力以赴，相信神会赐给你所需的能力和智慧。",
+          content: "在扣签游戏中展示你的技巧！请与NPC比赛，获胜才能继续前进。",
+          type: "offline",
+        },
+        18: {
+          title: "😞 灵性软弱",
+          story:
+            "最近你的灵性生活出现了倒退，祷告变得形式化，读经也失去了动力。你意识到这是灵性软弱的表现，需要重新回到神面前，承认自己的不足，寻求神的帮助和恩典。",
+          content:
+            "灵性软弱让你跌倒了！请大声清晰地背诵主祷文，然后退后一格反思。",
+          type: "penalty",
+        },
+        19: {
+          title: "❓ 信仰问答",
+          story:
+            "经过这段时间的学习和成长，是时候检验一下你对基督教信仰的理解了。虽然有些紧张，但你相信神会赐给你智慧，让你能够准确地表达自己的信仰认知和理解。",
+          content:
+            "是时候检验你的信仰知识了！请到主持人处抽取问题卡片，大声读出并回答。",
+          type: "offline",
+        },
+        20: {
+          title: "🤝 同工合作",
+          story:
+            "教会安排你和另一位弟兄姐妹一起完成一项事工。起初你们意见不合，但通过祷告和沟通，你们学会了放下自我，彼此信任，体验到了合一事奉的美好。",
+          content: "学习信任你的同工！请与另一位玩家合作完成拼积木任务。",
+          type: "offline",
+        },
+        21: {
+          title: "💒 受洗归主",
+          story:
+            "经过深思熟虑和祷告寻求，你做出了人生中最重要的决定——受洗归入基督！站在洗礼池前，你的心中充满了感恩和喜乐，准备公开宣告你对耶稣基督的信仰。",
+          content:
+            "恭喜你决定受洗！这是人生重要时刻，请写下一件你最近感恩的事情（30字以内）。",
+          type: "text",
+        },
+        22: {
+          title: "📢 传扬福音",
+          story:
+            "成为基督徒后，你内心有一股强烈的冲动想要分享这份喜乐。看到身边还有很多朋友没有认识神，你决定勇敢地踏出传福音的第一步，虽然紧张但充满期待。",
+          content:
+            "开始向朋友传福音！请对这位朋友说：「你是哪里人？你那里有基督徒吗？我觉得当基督徒挺好的。」",
+          type: "offline",
+        },
+        23: {
+          title: "⚡ 化装的祝福",
+          story:
+            "生活再次给你带来挑战和困难，但这次你的心态不同了。你开始学会在苦难中寻找神的美意，相信万事都互相效力，叫爱神的人得益处。这是信仰成熟的标志。",
+          content:
+            "学习在苦难中看见神的美意！请与NPC玩海盗桶游戏，刺中海盗的人获胜。",
+          type: "offline",
+        },
+        24: {
+          title: "🧘 灵修沉淀",
+          story:
+            "在快节奏的生活中，你意识到需要安静下来亲近神。你找了一个安静的角落，放下手机和一切干扰，准备用这段时间来祷告、默想，让心灵得到真正的安息和更新。",
+          content:
+            "在属灵道路上需要停下来思考沉淀。请安静等待2分钟，反思你的信仰历程。",
+          type: "wait",
+        },
+        25: {
+          title: "⛪ 主日生活",
+          story:
+            "主日对你来说变得越来越特别和神圣。这一天你会放下世俗的忙碌，专心敬拜神、与弟兄姐妹团契、阅读圣经。你发现主日的节奏让你的生活更有意义和方向。",
+          content: "今天是主日！请分享你只在主日才会做的三件事情。",
+          type: "text",
+        },
+        26: {
+          title: "🎁 传递祝福",
+          story:
+            "你越来越明白作为基督徒的使命不仅是接受神的祝福，更要成为别人的祝福。今天你有机会为其他人祷告和祝福，体验到给予比接受更为有福的真理。",
+          content:
+            "成为别人的祝福！请到主持人处抽取祝福卡片，并为这位朋友解读祝福内容。",
+          type: "offline",
+        },
+        27: {
+          title: "🎯 精准目标",
+          story:
+            "属灵生命的成长需要有明确的目标和方向。就像射箭需要瞄准靶心一样，你的信仰生活也需要以神为中心，专注于神的旨意，让每一个行动都指向荣耀神的目标。",
+          content:
+            "学习瞄准属灵目标！请在靶心游戏中投飞镖，累计达到50分才能过关。",
+          type: "offline",
+        },
+        28: {
+          title: "💭 属灵问题",
+          story:
+            "在信仰的道路上，你遇到了一些深层的属灵问题，这些问题让你困惑不已。但你知道寻求答案本身就是成长的过程，神喜悦那些诚实面对疑问并寻求真理的人。",
+          content: "面对属灵疑问需要寻求答案！请到NPC处回答属灵问题。",
+          type: "offline",
+        },
+        29: {
+          title: "❤️ 爱的传递",
+          story:
+            "经过这么长时间的信仰历程，你深深体会到神对你的爱是何等长阔高深。现在你想要将这份爱传递给更多的人，让每个人都能感受到神的爱和接纳。",
+          content:
+            "将神的爱传递给更多人！请与现场10个人握手，对每个人说：「上帝爱你，我也爱你！」",
+          type: "offline",
+        },
+        30: {
+          title: "🌟 生命见证",
+          story:
+            "站在人生的重要节点上，你回顾这段信仰之路，从最初的好奇到现在的坚定，从困惑到清晰，从软弱到刚强。你准备用自己的见证来荣耀神，激励其他人。",
+          content:
+            "回顾你的信仰历程！请用6个词语描述你的基督徒生命：过去2个词、现在2个词、未来展望2个词。",
+          type: "text",
+        },
+        31: {
+          title: "👑 成熟圣徒",
+          story:
+            "恭喜你！你已经走完了信仰成长的重要阶段。虽然这只是一个里程碑，但你已经从一个初信者成长为一个成熟的基督徒。愿你继续在恩典和真理中成长，成为更多人的祝福！",
+          content:
+            "恭喜你完成了信仰之路的旅程！愿你成为一个成熟的基督徒，继续在信仰中成长！",
+          type: "simple",
+        },
+      }; // 获取玩家小人emoji
+      function getPlayerFigure(gender) {
+        return gender === "男" ? "🧑‍💼" : "👩‍💼";
+      }
+
+      // 随机选择朋友
+      function selectRandomFriend(requireSameGender = false) {
+        if (!currentPlayer || !players || players.length <= 1) {
+          return null;
+        }
+
+        // 过滤掉当前玩家
+        let availablePlayers = players.filter((p) => p.id !== currentPlayer.id);
+
+        if (requireSameGender) {
+          // 如果需要相同性别，进一步过滤
+          const currentGender = currentPlayer.get("gender");
+          availablePlayers = availablePlayers.filter(
+            (p) => p.get("gender") === currentGender
+          );
+        }
+
+        if (availablePlayers.length === 0) {
+          return null;
+        }
+
+        // 随机选择一个玩家
+        const randomIndex = Math.floor(Math.random() * availablePlayers.length);
+        return availablePlayers[randomIndex];
+      }
+
+      // 检查任务是否需要朋友
+      function taskNeedsFriend(position) {
+        const friendTasks = [5, 12, 16, 22]; // 需要朋友的任务格子
+        return friendTasks.includes(position);
+      }
+
+      // 检查任务是否需要相同性别的朋友
+      function taskNeedsSameGender(position) {
+        return position === 16; // 拥抱任务需要相同性别
+      }
+
+      // 检查任务是否需要等待其他玩家
+      function taskNeedsWaiting(position) {
+        return position === 6 || position === 20; // 你比划我猜 和 合作拼积木
+      }
+
+      // 获取等待任务的描述
+      function getWaitingTaskDescription(position) {
+        if (position === 6) {
+          return {
+            title: "🎭 等待游戏伙伴",
+            description:
+              "你比划我猜需要两个人才能进行，正在等待另一位玩家到达这个格子...",
+          };
+        } else if (position === 20) {
+          return {
+            title: "🧩 等待合作伙伴",
+            description:
+              "合作拼积木需要两个人配合，正在等待另一位玩家到达这个格子...",
+          };
+        }
+        return { title: "⏳ 等待中", description: "等待其他玩家..." };
+      }
+
+      // 检测是否有其他玩家在相同位置
+      function getPlayersAtPosition(position) {
+        if (!players || !currentPlayer) return [];
+
+        const completedPlayerIds = window.completedTasks[position] || [];
+
+        // 获取所有在此位置且未完成任务的玩家（包括当前玩家）
+        const allPlayersAtPosition = players.filter(
+          (player) =>
+            player.get("position") === position &&
+            !completedPlayerIds.includes(player.id)
+        );
+
+        // 如果不是等待任务，返回原逻辑
+        if (!taskNeedsWaiting(position)) {
+          return allPlayersAtPosition.filter(
+            (player) => player.id !== currentPlayer.id
+          );
+        }
+
+        // 等待任务的配对逻辑
+        // 按到达时间排序
+        allPlayersAtPosition.sort((a, b) => {
+          const timeA = a.get(`arrivalTime_${position}`) || new Date(0);
+          const timeB = b.get(`arrivalTime_${position}`) || new Date(0);
+          return timeA.getTime() - timeB.getTime();
+        });
+
+        // 找到当前玩家在排序中的位置
+        const currentPlayerIndex = allPlayersAtPosition.findIndex(
+          (player) => player.id === currentPlayer.id
+        );
+
+        if (currentPlayerIndex === -1) return [];
+
+        // 配对逻辑：每两个玩家为一组
+        const pairIndex = Math.floor(currentPlayerIndex / 2);
+        const pairStartIndex = pairIndex * 2;
+
+        // 获取当前玩家的配对伙伴
+        const currentPair = allPlayersAtPosition.slice(
+          pairStartIndex,
+          pairStartIndex + 2
+        );
+
+        // 如果配对不完整（只有1个玩家），返回空数组表示需要等待
+        if (currentPair.length < 2) {
+          return [];
+        }
+
+        // 返回配对中的另一个玩家
+        return currentPair.filter((player) => player.id !== currentPlayer.id);
+      }
+
+      // 检测是否所有其他玩家都已经超过了指定位置
+      function allOtherPlayersPassed(position) {
+        if (!players || !currentPlayer) return false;
+
+        const otherPlayers = players.filter(
+          (player) => player.id !== currentPlayer.id
+        );
+        if (otherPlayers.length === 0) return true;
+
+        // 检查是否所有其他玩家的位置都大于当前位置
+        return otherPlayers.every(
+          (player) => player.get("position") > position
+        );
+      }
+
+      // 继续单独游戏
+      function continueAlone() {
+        if (!currentTask) return;
+
+        // 直接完成任务，不需要提交内容
+        currentTask = null;
+        selectedFriend = null;
+        closeTaskModal();
+
+        // 重新启用掷色子按钮
+        const rollButton = document.getElementById("rollDiceBtn");
+        if (
+          rollButton &&
+          gameState &&
+          gameState.get("isStarted") &&
+          !gameState.get("isEnded")
+        ) {
+          rollButton.disabled = false;
+        }
+        document.getElementById("viewTaskBtn").style.display = "none";
+      }
+
+      // 初始化应用
+      function initializeApp() {
+        if (typeof AV === "undefined") {
+          setTimeout(initializeApp, 100);
+          return;
+        }
+
+        if (APP_ID === "YOUR_APP_ID") {
+          document.body.innerHTML =
+            '<div style="text-align:center;padding:50px;color:orange;font-size:18px;">⚠️ 请先配置 LeanCloud 信息！<br><br>请修改代码中的 APP_ID, APP_KEY 和 SERVER_URL</div>';
+          return;
+        }
+
+        try {
+          AV.init({
+            appId: APP_ID,
+            appKey: APP_KEY,
+            serverURL: SERVER_URL,
+          });
+
+          Player = AV.Object.extend("Player");
+          GameState = AV.Object.extend("GameState");
+          Submission = AV.Object.extend("Submission");
+
+          console.log("LeanCloud 初始化成功");
+        } catch (error) {
+          console.error("LeanCloud 初始化失败:", error);
+        }
+      }
+
+      // 界面切换
+      function showScreen(screenId) {
+        document.querySelectorAll(".screen").forEach((screen) => {
+          screen.classList.remove("active");
+        });
+        document.getElementById(screenId).classList.add("active");
+
+        const container = document.querySelector(".container");
+        if (screenId === "hostScreen" || screenId === "submissionsScreen") {
+          container.classList.add("host");
+          if (screenId === "hostScreen" && !isHost) {
+            isHost = true;
+            loadGameState();
+            setInterval(loadGameState, 2000);
+          }
+        } else {
+          container.classList.remove("host");
+        }
+      }
+
+      // 生成随机颜色
+      function getRandomColor() {
+        const colors = [
+          "#f44336",
+          "#e91e63",
+          "#9c27b0",
+          "#673ab7",
+          "#3f51b5",
+          "#2196f3",
+          "#03a9f4",
+          "#00bcd4",
+          "#009688",
+          "#4caf50",
+          "#8bc34a",
+          "#cddc39",
+          "#ffeb3b",
+          "#ffc107",
+          "#ff9800",
+          "#ff5722",
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
+      }
+
+      // 生成头像
+      function generateAvatar(name, color) {
+        return {
+          color: color || getRandomColor(),
+          initial: name.charAt(0).toUpperCase(),
+        };
+      }
+
+      // 更新头像预览
+      function updateAvatarPreview() {
+        const name = document.getElementById("playerName").value;
+        const preview = document.getElementById("avatarPreview");
+
+        if (name) {
+          const avatar = generateAvatar(name);
+          preview.style.backgroundColor = avatar.color;
+          preview.textContent = avatar.initial;
+        } else {
+          preview.style.backgroundColor = "#ccc";
+          preview.textContent = "?";
+        }
+      }
+
+      // 头像文件处理
+      function handleAvatarUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const img = document.getElementById("cropperImage");
+          img.src = e.target.result;
+          img.onload = function () {
+            initAvatarCropper();
+            document
+              .getElementById("avatarCropperOverlay")
+              .classList.add("active");
+          };
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 初始化头像裁剪器
+      function initAvatarCropper() {
+        const img = document.getElementById("cropperImage");
+
+        // 重置状态
+        cropperState = {
+          scale: 1,
+          x: 0,
+          y: 0,
+          isDragging: false,
+          startX: 0,
+          startY: 0,
+          lastTouchDistance: 0,
+          isZooming: false,
+        };
+
+        // 计算初始缩放
+        setTimeout(() => {
+          calculateInitialScale();
+        }, 100);
+
+        // 添加拖拽事件
+        img.addEventListener("mousedown", startDrag);
+        img.addEventListener("touchstart", startDrag);
+      }
+
+      // 计算初始缩放
+      function calculateInitialScale() {
+        const img = document.getElementById("cropperImage");
+        const container = img.parentElement;
+        const containerRect = container.getBoundingClientRect();
+
+        if (
+          !img.naturalWidth ||
+          !img.naturalHeight ||
+          !containerRect.width ||
+          !containerRect.height
+        ) {
+          setTimeout(calculateInitialScale, 50);
+          return;
+        }
+
+        // 获取裁剪圆圈的大小（70vmin）
+        const circleSize =
+          Math.min(containerRect.width, containerRect.height) * 0.7;
+
+        // 计算让图片完全覆盖圆圈所需的最小缩放
+        const scaleX = circleSize / img.naturalWidth;
+        const scaleY = circleSize / img.naturalHeight;
+
+        // 使用较大的比例确保图片能完全覆盖圆圈
+        cropperState.scale = Math.max(scaleX, scaleY, 0.1);
+
+        console.log("Calculated scale:", cropperState.scale);
+        updateImageTransform();
+      }
+
+      // 开始拖拽
+      function startDrag(e) {
+        e.preventDefault();
+
+        if (e.type === "touchstart" && e.touches.length === 1) {
+          cropperState.isDragging = true;
+          cropperState.isZooming = false;
+          const touch = e.touches[0];
+          cropperState.startX = touch.clientX - cropperState.x;
+          cropperState.startY = touch.clientY - cropperState.y;
+        } else if (e.type === "touchstart" && e.touches.length === 2) {
+          cropperState.isDragging = false;
+          cropperState.isZooming = true;
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const distance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) +
+              Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+          cropperState.lastTouchDistance = distance;
+        } else if (e.type === "mousedown") {
+          cropperState.isDragging = true;
+          cropperState.isZooming = false;
+          cropperState.startX = e.clientX - cropperState.x;
+          cropperState.startY = e.clientY - cropperState.y;
+        }
+
+        document.addEventListener("mousemove", handleDrag);
+        document.addEventListener("touchmove", handleDrag);
+        document.addEventListener("mouseup", endDrag);
+        document.addEventListener("touchend", endDrag);
+      }
+
+      // 处理拖拽和缩放
+      function handleDrag(e) {
+        e.preventDefault();
+
+        if (
+          e.type === "touchmove" &&
+          e.touches.length === 1 &&
+          cropperState.isDragging
+        ) {
+          const touch = e.touches[0];
+          cropperState.x = touch.clientX - cropperState.startX;
+          cropperState.y = touch.clientY - cropperState.startY;
+          updateImageTransform();
+        } else if (
+          e.type === "touchmove" &&
+          e.touches.length === 2 &&
+          cropperState.isZooming
+        ) {
+          const touch1 = e.touches[0];
+          const touch2 = e.touches[1];
+          const distance = Math.sqrt(
+            Math.pow(touch2.clientX - touch1.clientX, 2) +
+              Math.pow(touch2.clientY - touch1.clientY, 2)
+          );
+
+          if (cropperState.lastTouchDistance > 0) {
+            const scaleChange = distance / cropperState.lastTouchDistance;
+            const newScale = cropperState.scale * scaleChange;
+            cropperState.scale = Math.max(0.1, Math.min(newScale, 5));
+            updateImageTransform();
+          }
+
+          cropperState.lastTouchDistance = distance;
+        } else if (e.type === "mousemove" && cropperState.isDragging) {
+          cropperState.x = e.clientX - cropperState.startX;
+          cropperState.y = e.clientY - cropperState.startY;
+          updateImageTransform();
+        }
+      }
+
+      // 结束拖拽
+      function endDrag(e) {
+        if (e.type === "touchend" && e.touches.length === 0) {
+          cropperState.isDragging = false;
+          cropperState.isZooming = false;
+          cropperState.lastTouchDistance = 0;
+        } else if (e.type === "mouseup") {
+          cropperState.isDragging = false;
+        }
+
+        if (e.type === "touchend" && e.touches.length > 0) {
+          return;
+        }
+
+        document.removeEventListener("mousemove", handleDrag);
+        document.removeEventListener("touchmove", handleDrag);
+        document.removeEventListener("mouseup", endDrag);
+        document.removeEventListener("touchend", endDrag);
+      }
+
+      // 更新图片变换
+      function updateImageTransform() {
+        const img = document.getElementById("cropperImage");
+        img.style.transform = `translate(calc(-50% + ${cropperState.x}px), calc(-50% + ${cropperState.y}px)) scale(${cropperState.scale})`;
+      }
+
+      // 确认头像裁剪 - 修复偏移问题
+      function confirmAvatarCrop() {
+        const img = document.getElementById("cropperImage");
+        const container = img.parentElement;
+
+        // 创建canvas进行裁剪
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 200;
+        canvas.height = 200;
+
+        // 计算裁剪区域
+        const containerRect = container.getBoundingClientRect();
+        const circleSize =
+          Math.min(containerRect.width, containerRect.height) * 0.7;
+        const centerX = containerRect.width / 2;
+        const centerY = containerRect.height / 2;
+
+        // 计算圆圈在原始图片中的位置和大小
+        const imageWidth = img.naturalWidth;
+        const imageHeight = img.naturalHeight;
+        const displayScale = cropperState.scale;
+
+        // 图片在容器中的实际位置（考虑变换）
+        const imgCenterX = centerX + cropperState.x;
+        const imgCenterY = centerY + cropperState.y;
+
+        // 裁剪圆圈在图片中的位置和大小
+        const cropSize = circleSize / displayScale;
+        const cropCenterX =
+          (centerX - imgCenterX) / displayScale + imageWidth / 2;
+        const cropCenterY =
+          (centerY - imgCenterY) / displayScale + imageHeight / 2;
+
+        const cropLeft = cropCenterX - cropSize / 2;
+        const cropTop = cropCenterY - cropSize / 2;
+
+        // 绘制圆形裁剪
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(100, 100, 100, 0, Math.PI * 2);
+        ctx.clip();
+
+        // 从原图的指定区域绘制到canvas
+        ctx.drawImage(
+          img,
+          cropLeft,
+          cropTop,
+          cropSize,
+          cropSize, // 源区域
+          0,
+          0,
+          200,
+          200 // 目标区域
+        );
+        ctx.restore();
+
+        const croppedDataURL = canvas.toDataURL("image/png", 0.9);
+        avatarCropData = croppedDataURL;
+
+        // 更新预览
+        const preview = document.getElementById("avatarPreview");
+        preview.style.backgroundImage = `url(${croppedDataURL})`;
+        preview.style.backgroundSize = "cover";
+        preview.style.backgroundPosition = "center";
+        preview.textContent = "";
+
+        document
+          .getElementById("avatarCropperOverlay")
+          .classList.remove("active");
+      }
+
+      // 取消头像裁剪
+      function cancelAvatarCrop() {
+        document
+          .getElementById("avatarCropperOverlay")
+          .classList.remove("active");
+        document.getElementById("playerAvatar").value = "";
+        avatarCropData = null;
+        updateAvatarPreview();
+      }
+
+      // 玩家注册
+      async function registerPlayer(event) {
+        event.preventDefault();
+
+        const name = document.getElementById("playerName").value;
+        const gender = document.getElementById("playerGender").value;
+
+        try {
+          const player = new Player();
+          player.set("name", name);
+          player.set("gender", gender);
+          player.set("position", 0);
+          player.set("isHost", false);
+
+          if (avatarCropData) {
+            const base64Data = avatarCropData.split(",")[1];
+            const file = new AV.File(name + "-avatar.png", {
+              base64: base64Data,
+            });
+            await file.save();
+            player.set("avatar", file.url());
+          } else {
+            const avatar = generateAvatar(name);
+            player.set("avatarColor", avatar.color);
+            player.set("avatarInitial", avatar.initial);
+          }
+
+          await player.save();
+          currentPlayer = player;
+
+          document.getElementById(
+            "playerWelcome"
+          ).textContent = `欢迎，${name}！`;
+          showScreen("playerGameScreen");
+
+          loadGameState();
+          setInterval(loadGameState, 2000);
+        } catch (error) {
+          console.error("注册失败:", error);
+          alert("注册失败，请重试");
+        }
+      }
+
+      // 加载游戏状态
+      async function loadGameState() {
+        try {
+          const gameQuery = new AV.Query(GameState);
+          const game = await gameQuery.first();
+
+          if (game) {
+            gameState = game;
+            const isStarted = game.get("isStarted");
+            const isEnded = game.get("isEnded");
+
+            if (isEnded) {
+              document.getElementById("gameStatus").textContent = "游戏已结束";
+              const rollButton = document.getElementById("rollDiceBtn");
+              if (rollButton) rollButton.disabled = true;
+              document.getElementById("diceContainer").style.display = "block";
+            } else if (isStarted) {
+              document.getElementById("gameStatus").textContent = "游戏进行中";
+              // 显示掷色子区域
+              document.getElementById("diceContainer").style.display = "block";
+              // 只有没有未完成任务时才启用掷色子按钮
+              const rollButton = document.getElementById("rollDiceBtn");
+              const viewTaskBtn = document.getElementById("viewTaskBtn");
+              if (rollButton && !currentTask) {
+                rollButton.disabled = false;
+                viewTaskBtn.style.display = "none";
+              } else if (currentTask) {
+                rollButton.disabled = true;
+                viewTaskBtn.style.display = "inline-block";
+              }
+            } else {
+              document.getElementById("gameStatus").textContent =
+                "等待游戏开始...";
+              // 隐藏掷色子区域
+              document.getElementById("diceContainer").style.display = "none";
+            }
+          } else {
+            // 没有游戏状态，隐藏掷色子区域
+            document.getElementById("diceContainer").style.display = "none";
+          }
+
+          // 加载所有玩家
+          const playerQuery = new AV.Query(Player);
+          players = await playerQuery.find();
+
+          // 更新当前玩家信息
+          if (currentPlayer) {
+            const updatedPlayer = players.find(
+              (p) => p.id === currentPlayer.id
+            );
+            if (updatedPlayer) {
+              currentPlayer = updatedPlayer;
+            }
+          }
+
+          // 加载任务完成状态 - 移到 try 块内，并添加错误处理
+          try {
+            const submissionQuery = new AV.Query(Submission);
+            const allSubmissions = await submissionQuery.find();
+            window.completedTasks = {}; // 存储每个位置已完成任务的玩家ID
+            allSubmissions.forEach((sub) => {
+              const pos = sub.get("position");
+              if (!window.completedTasks[pos]) {
+                window.completedTasks[pos] = [];
+              }
+              window.completedTasks[pos].push(sub.get("playerId"));
+            });
+          } catch (submissionError) {
+            console.error("加载任务完成状态失败:", submissionError);
+            // 如果加载失败，初始化为空对象，不影响游戏正常运行
+            window.completedTasks = {};
+          }
+
+          // 检查是否有等待任务需要更新状态
+          if (
+            currentTask &&
+            taskNeedsWaiting(currentTask.position) &&
+            !isHost
+          ) {
+            checkWaitingTaskStatus();
+          }
+          if (!isAnimating) {
+            if (!isHost) {
+              updatePlayerBoard();
+            } else {
+              updateHostBoard();
+              updatePlayersList();
+
+              // 更新游戏信息显示
+              const gameInfo = document.getElementById("gameInfo");
+              gameInfo.innerHTML = `
+              <p>当前玩家数量: ${players.length}</p>
+              <p>游戏状态: ${
+                gameState
+                  ? gameState.get("isEnded")
+                    ? "已结束"
+                    : gameState.get("isStarted")
+                    ? "进行中"
+                    : "未开始"
+                  : "未开始"
+              }</p>
+            `;
+            }
+          }
+        } catch (error) {
+          console.error("加载游戏状态失败:", error);
+          // 即使出错也要确保界面能正常显示
+          if (!isHost && players.length > 0) {
+            updatePlayerBoard();
+          } else if (isHost && players.length > 0) {
+            updateHostBoard();
+            updatePlayersList();
+          }
+        }
+      }
+      // 检查等待任务状态
+      function checkWaitingTaskStatus() {
+        if (!currentTask || !taskNeedsWaiting(currentTask.position)) return;
+
+        const position = currentTask.position;
+        const playersAtSamePosition = getPlayersAtPosition(position);
+        const allPlayersPassed = allOtherPlayersPassed(position);
+
+        // 检查当前任务模态框是否打开
+        const taskModal = document.getElementById("taskModal");
+        const isModalOpen = taskModal.classList.contains("active");
+
+        if (playersAtSamePosition.length > 0) {
+          // 有其他玩家到达了相同位置
+          if (isModalOpen) {
+            // 更新模态框内容为协作任务
+            showCollaborativeTask(position, playersAtSamePosition);
+          }
+        } else if (allPlayersPassed) {
+          // 所有其他玩家都已经超过了这个位置
+          if (isModalOpen) {
+            // 更新模态框内容，显示可以继续的选项
+            showWaitingTaskWithContinueOption(position);
+          }
+        }
+        // 如果仍在等待状态，不需要更新界面
+      }
+
+      // 修改updatePlayerBoard函数，增加地点显示
+      function updatePlayerBoard() {
+        if (!currentPlayer) return;
+
+        const board = document.getElementById("playerBoard");
+        const currentPos = currentPlayer.get("position");
+        const isGameStarted = gameState && gameState.get("isStarted");
+
+        board.innerHTML = "";
+
+        if (!isGameStarted) {
+          // 游戏未开始，显示大起点格子
+          const startCell = document.createElement("div");
+          startCell.className = "cell start waiting";
+          startCell.id = "cell-0";
+          startCell.innerHTML =
+            '<div class="cell-number">🏠 等待游戏开始</div>';
+
+          // 显示所有在起点的玩家
+          const playersOnStart = players.filter((p) => p.get("position") === 0);
+          if (playersOnStart.length > 0) {
+            const playersDiv = document.createElement("div");
+            playersDiv.className = "players-on-cell";
+
+            playersOnStart.forEach((player) => {
+              const container = document.createElement("div");
+              container.className = "player-container";
+
+              const avatar = document.createElement("div");
+              avatar.className = "player-avatar";
+
+              if (player.get("avatar")) {
+                avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+              } else {
+                avatar.style.backgroundColor = player.get("avatarColor");
+                avatar.textContent = player.get("avatarInitial");
+              }
+
+              container.appendChild(avatar);
+
+              // 只为当前玩家添加小人
+              if (currentPlayer && player.id === currentPlayer.id) {
+                const figure = document.createElement("div");
+                figure.className = "player-figure";
+                figure.textContent = getPlayerFigure(player.get("gender"));
+                container.appendChild(figure);
+              }
+
+              playersDiv.appendChild(container);
+            });
+
+            startCell.appendChild(playersDiv);
+          }
+
+          board.appendChild(startCell);
+          document.getElementById("diceContainer").style.display = "none";
+        } else {
+          // 游戏已开始，显示所有格子
+          for (let i = 0; i <= 31; i++) {
+            const cell = document.createElement("div");
+            cell.className = "cell";
+            cell.id = `cell-${i}`;
+            if (i === currentPos) cell.classList.add("current");
+
+            if (i === 0) {
+              cell.classList.add("start");
+              cell.innerHTML = `
+                <div class="cell-number">🏠 起点</div>
+                <div class="cell-location">教会门口</div>
+              `;
+            } else if (i === 31) {
+              cell.classList.add("end");
+              cell.innerHTML = `
+                <div class="cell-number">🏆 终点</div>
+                <div class="cell-location">荣耀之门</div>
+              `;
+            } else {
+              const cellNumber = document.createElement("div");
+              cellNumber.className = "cell-number";
+              const location = getLocationName(i);
+              if (location) {
+                cellNumber.innerHTML = `${i} <span class="cell-location-inline">${location}</span>`;
+              } else {
+                cellNumber.textContent = i;
+              }
+              cell.appendChild(cellNumber);
+            }
+
+            // 显示在这个格子上的玩家
+            const playersOnCell = players.filter(
+              (p) => p.get("position") === i
+            );
+            if (playersOnCell.length > 0) {
+              const playersDiv = document.createElement("div");
+              playersDiv.className = "players-on-cell";
+
+              playersOnCell.forEach((player) => {
+                const container = document.createElement("div");
+                container.className = "player-container";
+
+                const avatar = document.createElement("div");
+                avatar.className = "player-avatar";
+
+                if (player.get("avatar")) {
+                  avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+                } else {
+                  avatar.style.backgroundColor = player.get("avatarColor");
+                  avatar.textContent = player.get("avatarInitial");
+                }
+
+                container.appendChild(avatar);
+
+                // 只为当前玩家添加小人
+                if (currentPlayer && player.id === currentPlayer.id) {
+                  const figure = document.createElement("div");
+                  figure.className = "player-figure";
+                  figure.textContent = getPlayerFigure(player.get("gender"));
+                  container.appendChild(figure);
+                }
+
+                playersDiv.appendChild(container);
+              });
+
+              cell.appendChild(playersDiv);
+            }
+
+            board.appendChild(cell);
+          }
+
+          document.getElementById("diceContainer").style.display = "block";
+        }
+      }
+      // 修改updateHostBoard函数，增加地点显示
+      function updateHostBoard() {
+        const board = document.getElementById("hostBoard");
+        board.innerHTML = "";
+
+        for (let i = 0; i <= 31; i++) {
+          const cell = document.createElement("div");
+          cell.className = "cell";
+          cell.id = `host-cell-${i}`;
+
+          // 添加点击事件来显示任务详情
+          cell.addEventListener("click", () => showHostTaskModal(i));
+
+          if (i === 0) {
+            cell.classList.add("start");
+            cell.innerHTML = `
+              <div class="cell-number">🏠 起点 - 信仰之路开始</div>
+              <div class="cell-location">教会门口</div>
+            `;
+          } else if (i === 31) {
+            cell.classList.add("end");
+            cell.innerHTML = `
+              <div class="cell-number">🏆 终点 - 成熟的基督徒</div>
+              <div class="cell-location">荣耀之门</div>
+            `;
+          } else {
+            const cellNumber = document.createElement("div");
+            cellNumber.className = "cell-number";
+            const location = getLocationName(i);
+            if (location) {
+              cellNumber.innerHTML = `${i} <span class="cell-location-inline">${location}</span>`;
+            } else {
+              cellNumber.textContent = i;
+            }
+            cell.appendChild(cellNumber);
+          }
+
+          // 显示在这个格子上的玩家
+          const playersOnCell = players.filter((p) => p.get("position") === i);
+          if (playersOnCell.length > 0) {
+            const playersDiv = document.createElement("div");
+            playersDiv.className = "players-on-cell";
+
+            playersOnCell.forEach((player) => {
+              const avatar = document.createElement("div");
+              avatar.className = "player-avatar";
+
+              if (player.get("avatar")) {
+                avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+              } else {
+                avatar.style.backgroundColor = player.get("avatarColor");
+                avatar.textContent = player.get("avatarInitial");
+              }
+
+              playersDiv.appendChild(avatar);
+            });
+
+            cell.appendChild(playersDiv);
+          }
+
+          board.appendChild(cell);
+        }
+      }
+      // 显示主持人任务详情弹窗
+      function showHostTaskModal(position) {
+        const task = tasks[position];
+        if (!task) return;
+
+        document.getElementById(
+          "hostTaskTitle"
+        ).textContent = `格子${position}: ${task.title}`;
+        document.getElementById("hostTaskDescription").textContent =
+          task.content;
+
+        const typeElement = document.getElementById("hostTaskType");
+        let typeText = "";
+        switch (task.type) {
+          case "simple":
+            typeText = "简单任务";
+            break;
+          case "text":
+            typeText = "文字任务";
+            break;
+          case "draw":
+            typeText = "绘画任务";
+            break;
+          case "offline":
+            typeText = "线下任务";
+            break;
+          case "wait":
+            typeText = "等待任务";
+            break;
+          case "penalty":
+            typeText = "惩罚任务";
+            break;
+          default:
+            typeText = "未知类型";
+            break;
+        }
+        typeElement.textContent = typeText;
+
+        document.getElementById("hostTaskModal").classList.add("active");
+      }
+
+      // 关闭主持人任务详情弹窗
+      function closeHostTaskModal() {
+        document.getElementById("hostTaskModal").classList.remove("active");
+      }
+
+      // 更新玩家列表
+      function updatePlayersList() {
+        const list = document.getElementById("playersList");
+
+        // 保存当前正在编辑的输入框的值和焦点状态
+        const editingStates = {};
+        const currentFocus = document.activeElement;
+        let focusedInputId = null;
+
+        // 收集所有位置输入框的当前状态
+        list.querySelectorAll(".position-input").forEach((input) => {
+          editingStates[input.id] = {
+            value: input.value,
+            isFocused: input === currentFocus,
+          };
+          if (input === currentFocus) {
+            focusedInputId = input.id;
+          }
+        });
+
+        list.innerHTML = "";
+
+        // 按位置从大到小排序
+        const sortedPlayers = [...players].sort(
+          (a, b) => b.get("position") - a.get("position")
+        );
+
+        sortedPlayers.forEach((player, index) => {
+          const card = document.createElement("div");
+          card.className = "player-card";
+
+          const avatar = document.createElement("div");
+          avatar.className = "avatar";
+          if (player.get("avatar")) {
+            avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+          } else {
+            avatar.style.backgroundColor = player.get("avatarColor");
+            avatar.textContent = player.get("avatarInitial");
+          }
+
+          const info = document.createElement("div");
+          info.className = "info";
+
+          const inputId = `pos-${player.id}`;
+
+          // 确定输入框应该显示的值
+          let inputValue = player.get("position");
+          if (editingStates[inputId] && editingStates[inputId].isFocused) {
+            // 如果这个输入框之前有焦点，使用之前的编辑值
+            inputValue = editingStates[inputId].value;
+          }
+
+          info.innerHTML = `
+            <div><strong>${player.get("name")}</strong> ${
+            index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : ""
+          }</div>
+            <div>性别: ${player.get("gender")}</div>
+            <div class="position-edit-section">
+              <label>位置: </label>
+              <input type="number"
+                     class="position-input"
+                     id="${inputId}"
+                     value="${inputValue}"
+                     min="0"
+                     max="31"
+                     style="width: 60px; padding: 2px 5px; margin: 0 5px;">
+              <button class="mini-button" onclick="updatePlayerPosition('${
+                player.id
+              }')">
+                更新
+              </button>
+            </div>
+          `;
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.className = "delete-player-btn";
+          deleteBtn.textContent = "删除";
+          deleteBtn.onclick = () => deletePlayer(player);
+
+          card.appendChild(avatar);
+          card.appendChild(info);
+          card.appendChild(deleteBtn);
+          list.appendChild(card);
+        });
+
+        // 恢复焦点到之前正在编辑的输入框
+        if (focusedInputId) {
+          setTimeout(() => {
+            const inputToRefocus = document.getElementById(focusedInputId);
+            if (inputToRefocus) {
+              inputToRefocus.focus();
+              // 恢复光标位置到末尾
+              inputToRefocus.setSelectionRange(
+                inputToRefocus.value.length,
+                inputToRefocus.value.length
+              );
+            }
+          }, 0);
+        }
+      } // 开始游戏
+      async function startGame() {
+        try {
+          let game = gameState;
+          if (!game) {
+            game = new GameState();
+          }
+          game.set("isStarted", true);
+          game.set("isEnded", false);
+          await game.save();
+
+          document.getElementById("startGameBtn").disabled = true;
+          document.getElementById("endGameBtn").disabled = false;
+
+          loadGameState();
+        } catch (error) {
+          console.error("开始游戏失败:", error);
+        }
+      }
+
+      // 结束游戏
+      async function endGame() {
+        try {
+          if (gameState) {
+            gameState.set("isEnded", true);
+            await gameState.save();
+          }
+
+          document.getElementById("startGameBtn").disabled = false;
+          document.getElementById("endGameBtn").disabled = true;
+
+          loadGameState();
+        } catch (error) {
+          console.error("结束游戏失败:", error);
+        }
+      }
+
+      // 掷骰子
+      async function rollDice() {
+        const diceElement = document.getElementById("diceResult");
+        const rollButton = document.getElementById("rollDiceBtn");
+
+        rollButton.disabled = true;
+        diceElement.classList.add("rolling");
+
+        const animationDuration = 1000;
+        const intervalTime = 100;
+        const intervals = animationDuration / intervalTime;
+        let counter = 0;
+
+        const animationInterval = setInterval(() => {
+          diceElement.textContent = Math.floor(Math.random() * 3) + 1;
+          counter++;
+
+          if (counter >= intervals) {
+            clearInterval(animationInterval);
+            const finalResult = Math.floor(Math.random() * 3) + 1;
+            diceElement.textContent = finalResult;
+            diceElement.classList.remove("rolling");
+            movePlayer(finalResult);
+          }
+        }, intervalTime);
+      }
+
+      // 移动玩家 - 添加动画效果
+      async function movePlayer(steps) {
+        isAnimating = true;
+        const oldPosition = currentPlayer.get("position");
+        const newPosition = Math.min(31, oldPosition + steps);
+
+        console.log(
+          `移动玩家从 ${oldPosition} 到 ${newPosition}，共 ${steps} 步`
+        );
+
+        // 逐步移动动画
+        let currentStep = 0;
+        const moveStep = () => {
+          if (currentStep < steps && oldPosition + currentStep < 31) {
+            currentStep++;
+            const intermediatePosition = oldPosition + currentStep;
+
+            console.log(
+              `执行第 ${currentStep} 步移动到位置 ${intermediatePosition}`
+            );
+
+            // 临时更新位置显示动画
+            movePlayerAvatar(
+              oldPosition + currentStep - 1,
+              intermediatePosition
+            );
+
+            setTimeout(() => {
+              if (currentStep < steps && oldPosition + currentStep < 31) {
+                moveStep();
+              } else {
+                // 最终保存位置
+                finalizeMovePlayer(newPosition);
+              }
+            }, 500); // 每步500ms
+          } else {
+            finalizeMovePlayer(newPosition);
+          }
+        };
+
+        moveStep();
+      }
+
+      // 头像和小人移动动画
+      function movePlayerAvatar(fromPos, toPos) {
+        // 找到当前玩家的头像容器
+        const fromCell = document.getElementById(`cell-${fromPos}`);
+        const toCell = document.getElementById(`cell-${toPos}`);
+
+        if (!fromCell || !toCell) {
+          console.log("找不到格子:", fromPos, toPos);
+          return;
+        }
+
+        const fromPlayersDiv = fromCell.querySelector(".players-on-cell");
+        if (!fromPlayersDiv) {
+          console.log("找不到玩家容器:", fromPos);
+          return;
+        }
+
+        // 查找当前玩家的容器
+        let playerContainer = null;
+        const containers = fromPlayersDiv.querySelectorAll(".player-container");
+
+        for (let container of containers) {
+          const avatar = container.querySelector(".player-avatar");
+          const figure = container.querySelector(".player-figure");
+
+          // 检查是否有小人（只有当前玩家才有）
+          if (figure) {
+            playerContainer = container;
+            break;
+          }
+        }
+
+        if (playerContainer) {
+          console.log("找到玩家容器，开始移动动画");
+
+          // 添加移动效果
+          const avatar = playerContainer.querySelector(".player-avatar");
+          const figure = playerContainer.querySelector(".player-figure");
+
+          if (avatar) avatar.classList.add("moving");
+          if (figure) figure.classList.add("moving");
+
+          // 移动到新位置
+          let toPlayersDiv = toCell.querySelector(".players-on-cell");
+          if (!toPlayersDiv) {
+            toPlayersDiv = document.createElement("div");
+            toPlayersDiv.className = "players-on-cell";
+            toCell.appendChild(toPlayersDiv);
+          }
+
+          // 克隆整个容器到新位置
+          const newContainer = playerContainer.cloneNode(true);
+          toPlayersDiv.appendChild(newContainer);
+
+          // 移除原位置的容器
+          playerContainer.remove();
+
+          // 清理空的容器
+          if (fromPlayersDiv.children.length === 0) {
+            fromPlayersDiv.remove();
+          }
+
+          // 移除移动效果
+          setTimeout(() => {
+            const newAvatar = newContainer.querySelector(".player-avatar");
+            const newFigure = newContainer.querySelector(".player-figure");
+
+            if (newAvatar) newAvatar.classList.remove("moving");
+            if (newFigure) newFigure.classList.remove("moving");
+          }, 600);
+
+          // 滚动到当前位置
+          setTimeout(() => {
+            scrollToCurrentPlayer(toPos);
+          }, 100);
+        } else {
+          console.log("找不到当前玩家的容器");
+        }
+      }
+
+      // 修改finalizeMovePlayer函数中的任务调用
+      async function finalizeMovePlayer(newPosition) {
+        currentPlayer.set("position", newPosition);
+
+        try {
+          await currentPlayer.save();
+
+          if (taskNeedsWaiting(newPosition)) {
+            // 记录到达时间戳
+            currentPlayer.set(`arrivalTime_${newPosition}`, new Date());
+            await currentPlayer.save();
+          }
+
+          // 检查是否有任务 - 改为调用showTaskPreview
+          if (tasks[newPosition]) {
+            setTimeout(() => {
+              showTaskPreview(newPosition); // 这里改了
+            }, 800);
+          } else {
+            // 没有任务时重新启用掷色子按钮（仅在游戏进行中）
+            const rollButton = document.getElementById("rollDiceBtn");
+            if (
+              rollButton &&
+              gameState &&
+              gameState.get("isStarted") &&
+              !gameState.get("isEnded")
+            ) {
+              rollButton.disabled = false;
+            }
+          }
+          // 检查是否到达终点
+          if (newPosition === 31) {
+            setTimeout(() => {
+              showFireworks();
+            }, 1500);
+          }
+        } catch (error) {
+          console.error("保存位置失败:", error);
+          document.getElementById("rollDiceBtn").disabled = false;
+        }
+      }
+      // 滚动到当前玩家位置
+      function scrollToCurrentPlayer(position = null) {
+        const targetPos =
+          position || (currentPlayer ? currentPlayer.get("position") : 0);
+        const targetCell = document.getElementById(`cell-${targetPos}`);
+
+        console.log(`尝试滚动到位置 ${targetPos}`);
+
+        if (targetCell) {
+          console.log("找到目标格子，开始滚动");
+          targetCell.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "center",
+          });
+        } else {
+          console.log("找不到目标格子");
+        }
+      }
+
+      // 显示任务
+      function showTask(position) {
+        const task = tasks[position];
+        if (!task) return;
+
+        currentTask = { position, ...task };
+
+        // 检查是否是等待任务
+        if (taskNeedsWaiting(position)) {
+          // 检查是否有其他玩家在相同位置
+          const playersAtSamePosition = getPlayersAtPosition(position);
+          const allPlayersPassed = allOtherPlayersPassed(position);
+
+          if (playersAtSamePosition.length > 0) {
+            // 有其他玩家在相同位置，可以开始任务
+            showCollaborativeTask(position, playersAtSamePosition);
+            return;
+          } else if (allPlayersPassed) {
+            // 所有其他玩家都已经过了这个位置，可以单独继续
+            showWaitingTaskWithContinueOption(position);
+            return;
+          } else {
+            // 需要等待其他玩家
+            showWaitingTask(position);
+            return;
+          }
+        }
+
+        // 检查是否需要选择朋友
+        if (taskNeedsFriend(position)) {
+          const needsSameGender = taskNeedsSameGender(position);
+          selectedFriend = selectRandomFriend(needsSameGender);
+
+          if (!selectedFriend) {
+            if (needsSameGender) {
+              alert("没有找到相同性别的其他玩家来完成此任务！");
+            } else {
+              alert("没有找到其他玩家来完成此任务！");
+            }
+            // 仍然继续显示任务，但不显示朋友信息
+          }
+        } else {
+          selectedFriend = null;
+        }
+
+        // 显示任务时禁用掷色子按钮，显示查看任务按钮
+        document.getElementById("rollDiceBtn").disabled = true;
+        document.getElementById("viewTaskBtn").style.display = "inline-block";
+
+        document.getElementById("taskTitle").textContent = "任务";
+        document.getElementById("taskDescription").textContent = task.content;
+
+        const inputDiv = document.getElementById("taskInput");
+        inputDiv.innerHTML = "";
+
+        // 如果有选中的朋友，显示朋友信息
+        if (selectedFriend) {
+          const friendDiv = document.createElement("div");
+          friendDiv.className = "selected-friend";
+
+          const friendAvatarStyle = selectedFriend.get("avatar")
+            ? `background-image: url(${selectedFriend.get("avatar")})`
+            : `background-color: ${selectedFriend.get("avatarColor")}`;
+
+          const friendAvatarContent = selectedFriend.get("avatar")
+            ? ""
+            : selectedFriend.get("avatarInitial");
+
+          friendDiv.innerHTML = `
+                                <h4>🤝 你的任务伙伴</h4>
+                                <div class="friend-info">
+                                  <div class="friend-avatar" style="${friendAvatarStyle}">${friendAvatarContent}</div>
+                                  <div class="friend-name">${selectedFriend.get(
+                                    "name"
+                                  )}</div>
+                                </div>
+                              `;
+          inputDiv.appendChild(friendDiv);
+        }
+
+        switch (task.type) {
+          case "penalty":
+            // 惩罚任务直接执行，不显示弹窗
+            showPenaltyModal();
+            return; // 直接返回，不显示任务弹窗
+          case "text":
+            // 检查是否是特殊的多输入任务
+            if (position === 7) {
+              // 相信基督教的理由任务
+              inputDiv.innerHTML += `
+                                    <div class="reasons-container">
+                                      <div class="reason-section believe">
+                                        <h5>✅ 相信基督教的理由</h5>
+                                        <div class="input-group">
+                                          <label>理由1:</label>
+                                          <textarea id="believeReason1" placeholder="请输入第一个相信的理由..." rows="3"></textarea>
+                                        </div>
+                                        <div class="input-group">
+                                          <label>理由2:</label>
+                                          <textarea id="believeReason2" placeholder="请输入第二个相信的理由..." rows="3"></textarea>
+                                        </div>
+                                      </div>
+                                      <div class="reason-section doubt">
+                                        <h5>❓ 不相信基督教的理由</h5>
+                                        <div class="input-group">                      <label>理由1:</label>
+                                          <textarea id="doubtReason1" placeholder="请输入第一个不相信的理由..." rows="3"></textarea>
+                                        </div>
+                                        <div class="input-group">
+                                          <label>理由2:</label>
+                                          <textarea id="doubtReason2" placeholder="请输入第二个不相信的理由..." rows="3"></textarea>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+            } else if (position === 9) {
+              // 诗歌歌单任务
+              inputDiv.innerHTML += `
+                                    <div class="multi-input-container">
+                                      <div class="input-group">
+                                        <label>🎵 歌单主题:</label>
+                                        <input type="text" id="playlistTheme" placeholder="请输入歌单的主题..." />
+                                      </div>
+                                      <div class="input-group">
+                                        <label>📝 主题描述:</label>
+                                        <textarea id="playlistDescription" placeholder="请描述这个主题的含义和选择原因..." rows="3"></textarea>
+                                      </div>
+                                      <div class="input-group">
+                                        <label>🎼 歌曲列表:</label>
+                                        <div class="songs-list">
+                                          <div class="song-item">
+                                            <div class="song-number">1</div>
+                                            <input type="text" class="song-input" id="song1" placeholder="第一首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">2</div>
+                                            <input type="text" class="song-input" id="song2" placeholder="第二首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">3</div>
+                                            <input type="text" class="song-input" id="song3" placeholder="第三首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">4</div>
+                                            <input type="text" class="song-input" id="song4" placeholder="第四首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">5</div>
+                                            <input type="text" class="song-input" id="song5" placeholder="第五首歌曲名称..." />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+            } else if (position === 25) {
+              // 主日三件事任务
+              inputDiv.innerHTML += `
+                          <div class="multi-input-container">
+                            <div class="input-group">
+                              <label>⛪ 第一件事:</label>
+                              <input type="text" id="sunday1" placeholder="请输入你只在主日做的第一件事..." />
+                            </div>
+                            <div class="input-group">
+                              <label>📿 第二件事:</label>
+                              <input type="text" id="sunday2" placeholder="请输入你只在主日做的第二件事..." />
+                            </div>
+                            <div class="input-group">
+                              <label>🙏 第三件事:</label>
+                              <input type="text" id="sunday3" placeholder="请输入你只在主日做的第三件事..." />
+                            </div>
+                          </div>
+                        `;
+            } else if (position === 30) {
+              // 生命见证任务 - 过去现在未来
+              inputDiv.innerHTML += `
+          <div class="life-journey-container">
+            <div class="journey-section past">
+              <h5>🔙 过去的生命</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="pastWord1" placeholder="描述你过去生命的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="pastWord2" placeholder="描述你过去生命的第二个词语..." />
+              </div>
+            </div>
+            <div class="journey-section present">
+              <h5>🔄 现在的生命</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="presentWord1" placeholder="描述你现在生命的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="presentWord2" placeholder="描述你现在生命的第二个词语..." />
+              </div>
+            </div>
+            <div class="journey-section future">
+              <h5>🔮 未来的展望</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="futureWord1" placeholder="描述你未来展望的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="futureWord2" placeholder="描述你未来展望的第二个词语..." />
+              </div>
+            </div>
+          </div>
+        `;
+            } else {
+              // 普通文本任务
+              inputDiv.innerHTML +=
+                '<textarea class="task-textarea" id="taskTextInput" rows="4" placeholder="请输入你的答案..."></textarea>';
+            }
+            break;
+          case "draw":
+            inputDiv.innerHTML += `
+                                            <div class="canvas-container">
+                                                <canvas id="logoCanvas" width="500" height="300"></canvas>
+                                                <div class="canvas-tools">
+                                                    <div class="color-palette">
+                                                        <div class="color-btn active" style="background-color: #000000" onclick="setDrawingColor('#000000')"></div>
+                                                        <div class="color-btn" style="background-color: #ff0000" onclick="setDrawingColor('#ff0000')"></div>
+                                                        <div class="color-btn" style="background-color: #00ff00" onclick="setDrawingColor('#00ff00')"></div>
+                                                        <div class="color-btn" style="background-color: #0000ff" onclick="setDrawingColor('#0000ff')"></div>
+                                                    </div>
+                                                    <div class="tool-buttons">
+                                                        <div class="tool-btn active" onclick="setDrawingTool('pen')">画笔</div>
+                                                        <div class="tool-btn" onclick="setDrawingTool('eraser')">橡皮</div>
+                                                        <button class="button" onclick="clearCanvas()">清空</button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        `;
+            initCanvas();
+            break;
+          case "wait":
+            inputDiv.innerHTML +=
+              '<div class="countdown-display" id="countdownDisplay">⏰ 请等待 2:00</div>';
+            countdownStartTime = Date.now(); // 记录开始时间
+            startCountdown(120); // 120秒倒计时
+            document.getElementById("completeTaskBtn").disabled = true;
+            break;
+          default:
+            break;
+        }
+
+        document.getElementById("taskModal").classList.add("active");
+      }
+
+      // 显示等待任务界面
+      function showWaitingTask(position) {
+        const waitingInfo = getWaitingTaskDescription(position);
+
+        // 显示任务时禁用掷色子按钮，显示查看任务按钮
+        document.getElementById("rollDiceBtn").disabled = true;
+        document.getElementById("viewTaskBtn").style.display = "inline-block";
+
+        document.getElementById(
+          "taskTitle"
+        ).textContent = `格子${position}: ${tasks[position].title}`;
+        document.getElementById("taskDescription").textContent =
+          tasks[position].content;
+
+        const inputDiv = document.getElementById("taskInput");
+        inputDiv.innerHTML = `
+                              <div class="waiting-display">
+                                <div class="waiting-title">
+                                  <span class="waiting-spinner"></span>
+                                  ${waitingInfo.title}
+                                </div>
+                                <div class="waiting-description">
+                                  ${waitingInfo.description}
+                                </div>
+                                <div class="waiting-status">
+                                  正在等待其他玩家到达格子${position}...
+                                </div>
+                                <div class="players-waiting-list">
+                                  <h5>👥 当前在此格子的玩家</h5>
+                                  <div class="waiting-players">
+                                    <div class="waiting-player-avatar" style="${
+                                      currentPlayer.get("avatar")
+                                        ? `background-image: url(${currentPlayer.get(
+                                            "avatar"
+                                          )})`
+                                        : `background-color: ${currentPlayer.get(
+                                            "avatarColor"
+                                          )}`
+                                    }">
+                                      ${
+                                        currentPlayer.get("avatar")
+                                          ? ""
+                                          : currentPlayer.get("avatarInitial")
+                                      }
+                                      <div class="waiting-player-name">${currentPlayer.get(
+                                        "name"
+                                      )} (你)</div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            `;
+
+        // 隐藏完成任务按钮，因为需要等待
+        document.getElementById("completeTaskBtn").style.display = "none";
+        document.getElementById("taskModal").classList.add("active");
+      }
+
+      // 显示等待任务界面（带继续选项）
+      function showWaitingTaskWithContinueOption(position) {
+        const waitingInfo = getWaitingTaskDescription(position);
+
+        // 显示任务时禁用掷色子按钮，显示查看任务按钮
+        document.getElementById("rollDiceBtn").disabled = true;
+        document.getElementById("viewTaskBtn").style.display = "inline-block";
+
+        document.getElementById(
+          "taskTitle"
+        ).textContent = `格子${position}: ${tasks[position].title}`;
+        document.getElementById("taskDescription").textContent =
+          tasks[position].content;
+
+        const inputDiv = document.getElementById("taskInput");
+        inputDiv.innerHTML = `
+                              <div class="waiting-display">
+                                <div class="waiting-title">
+                                  <span class="waiting-spinner"></span>
+                                  ${waitingInfo.title}
+                                </div>
+                                <div class="waiting-description">
+                                  ${waitingInfo.description}
+                                </div>
+                                <div class="waiting-status">
+                                  正在等待其他玩家到达格子${position}...
+                                </div>
+                                <div class="continue-alone-section">
+                                  <h5>⚠️ 没有其他玩家会到达这里</h5>
+                                  <p>检测到所有其他玩家都已经超过了这个位置，您可以选择跳过这个任务直接继续游戏。</p>
+                                  <button class="button" onclick="continueAlone()">跳过任务继续游戏</button>
+                                </div>
+                              </div>
+                            `;
+
+        // 隐藏完成任务按钮
+        document.getElementById("completeTaskBtn").style.display = "none";
+        document.getElementById("taskModal").classList.add("active");
+      }
+
+      // 显示协作任务界面
+      function showCollaborativeTask(position, collaborators) {
+        // 显示任务时禁用掷色子按钮，显示查看任务按钮
+        document.getElementById("rollDiceBtn").disabled = true;
+        document.getElementById("viewTaskBtn").style.display = "inline-block";
+
+        document.getElementById(
+          "taskTitle"
+        ).textContent = `格子${position}: ${tasks[position].title}`;
+        document.getElementById("taskDescription").textContent =
+          tasks[position].content;
+
+        const inputDiv = document.getElementById("taskInput");
+
+        // 显示协作伙伴
+        let collaboratorHtml = "";
+        collaborators.forEach((player) => {
+          const avatarStyle = player.get("avatar")
+            ? `background-image: url(${player.get("avatar")})`
+            : `background-color: ${player.get("avatarColor")}`;
+          const avatarContent = player.get("avatar")
+            ? ""
+            : player.get("avatarInitial");
+
+          collaboratorHtml += `
+                                <div class="waiting-player-avatar" style="${avatarStyle}">
+                                  ${avatarContent}
+                                  <div class="waiting-player-name">${player.get(
+                                    "name"
+                                  )}</div>
+                                </div>
+                              `;
+        });
+
+        inputDiv.innerHTML = `
+                              <div class="waiting-display">
+                                <div class="waiting-title">
+                                  🎉 找到合作伙伴！
+                                </div>
+                                <div class="waiting-description">
+                                  太好了！有其他玩家也到达了这个格子，你们可以一起完成任务了！
+                                </div>
+                                <div class="players-waiting-list">
+                                  <h5>👥 参与任务的玩家</h5>
+                                  <div class="waiting-players">
+                                    <div class="waiting-player-avatar" style="${
+                                      currentPlayer.get("avatar")
+                                        ? `background-image: url(${currentPlayer.get(
+                                            "avatar"
+                                          )})`
+                                        : `background-color: ${currentPlayer.get(
+                                            "avatarColor"
+                                          )}`
+                                    }">
+                                      ${
+                                        currentPlayer.get("avatar")
+                                          ? ""
+                                          : currentPlayer.get("avatarInitial")
+                                      }
+                                      <div class="waiting-player-name">${currentPlayer.get(
+                                        "name"
+                                      )} (你)</div>
+                                    </div>
+                                    ${collaboratorHtml}
+                                  </div>
+                                </div>
+                              </div>
+                            `;
+
+        // 显示完成任务按钮
+        document.getElementById("completeTaskBtn").style.display =
+          "inline-block";
+        document.getElementById("taskModal").classList.add("active");
+      }
+
+      // 倒计时功能
+      function startCountdown(seconds) {
+        const display = document.getElementById("countdownDisplay");
+        if (!display) return;
+
+        // 清除之前的倒计时
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+        }
+
+        let remainingTime = seconds;
+
+        // 立即更新一次显示
+        updateCountdownDisplay(remainingTime, display);
+
+        countdownInterval = setInterval(() => {
+          remainingTime--;
+          updateCountdownDisplay(remainingTime, display);
+
+          if (remainingTime < 0) {
+            clearInterval(countdownInterval);
+            display.textContent = "🎉 等待时间结束！";
+            display.classList.add("finished");
+            document.getElementById("completeTaskBtn").disabled = false;
+          }
+        }, 1000);
+      }
+
+      function updateCountdownDisplay(seconds, display) {
+        if (seconds < 0) return;
+
+        const minutes = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        const timeString = `${minutes}:${secs.toString().padStart(2, "0")}`;
+
+        if (seconds > 60) {
+          display.textContent = `⏰ 请等待 ${timeString}`;
+        } else if (seconds > 10) {
+          display.textContent = `⏰ 还剩 ${timeString}`;
+        } else if (seconds > 0) {
+          display.textContent = `⏰ 最后 ${seconds} 秒！`;
+          display.style.color = "#ff5722"; // 最后10秒变成橙红色
+        }
+      }
+
+      // 修改reopenTask函数以适应两阶段显示
+      function reopenTask() {
+        if (currentTask) {
+          const position = currentTask.position;
+
+          // 如果是等待任务，重新检查状态
+          if (taskNeedsWaiting(position)) {
+            const playersAtSamePosition = getPlayersAtPosition(position);
+            const allPlayersPassed = allOtherPlayersPassed(position);
+
+            if (playersAtSamePosition.length > 0) {
+              // 有其他玩家在相同位置，显示协作任务
+              showCollaborativeTask(position, playersAtSamePosition);
+              return;
+            } else if (allPlayersPassed) {
+              // 所有其他玩家都已经过了这个位置，显示继续选项
+              showWaitingTaskWithContinueOption(position);
+              return;
+            } else {
+              // 仍在等待状态
+              showWaitingTask(position);
+              return;
+            }
+          }
+
+          // 直接显示完整任务，而不是预览
+          showFullTask();
+        }
+      } // 设置绘画颜色
+      function setDrawingColor(color) {
+        drawingColor = color;
+        drawingTool = "pen"; // 选择颜色时自动切换到画笔
+
+        // 更新颜色按钮状态
+        document
+          .querySelectorAll(".color-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        event.target.classList.add("active");
+
+        // 更新工具按钮状态
+        document
+          .querySelectorAll(".tool-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        document
+          .querySelector(".tool-btn[onclick=\"setDrawingTool('pen')\"]")
+          .classList.add("active");
+      }
+
+      // 设置绘画工具
+      function setDrawingTool(tool) {
+        drawingTool = tool;
+
+        // 更新工具按钮状态
+        document
+          .querySelectorAll(".tool-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        event.target.classList.add("active");
+      }
+
+      // 初始化画布
+      function initCanvas() {
+        const canvas = document.getElementById("logoCanvas");
+        const ctx = canvas.getContext("2d");
+        let isDrawing = false;
+
+        // 设置画布上下文属性
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        // 获取正确的坐标位置
+        function getCanvasCoordinates(e, canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          const scaleY = canvas.height / rect.height;
+
+          if (e.touches && e.touches.length > 0) {
+            // 触摸事件
+            const touch = e.touches[0];
+            return {
+              x: (touch.clientX - rect.left) * scaleX,
+              y: (touch.clientY - rect.top) * scaleY,
+            };
+          } else {
+            // 鼠标事件
+            return {
+              x: (e.clientX - rect.left) * scaleX,
+              y: (e.clientY - rect.top) * scaleY,
+            };
+          }
+        }
+
+        // 鼠标事件
+        canvas.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          isDrawing = true;
+          const coords = getCanvasCoordinates(e, canvas);
+          ctx.beginPath();
+          ctx.moveTo(coords.x, coords.y);
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          e.preventDefault();
+          if (isDrawing) {
+            const coords = getCanvasCoordinates(e, canvas);
+
+            if (drawingTool === "pen") {
+              ctx.globalCompositeOperation = "source-over";
+              ctx.strokeStyle = drawingColor;
+              ctx.lineWidth = 2;
+            } else if (drawingTool === "eraser") {
+              ctx.globalCompositeOperation = "destination-out";
+              ctx.lineWidth = 10;
+            }
+
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+          }
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+
+        // 触摸设备支持
+        canvas.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          if (e.touches.length === 1) {
+            isDrawing = true;
+            const coords = getCanvasCoordinates(e, canvas);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+          }
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+          e.preventDefault();
+          if (isDrawing && e.touches.length === 1) {
+            const coords = getCanvasCoordinates(e, canvas);
+
+            if (drawingTool === "pen") {
+              ctx.globalCompositeOperation = "source-over";
+              ctx.strokeStyle = drawingColor;
+              ctx.lineWidth = 3; // 触摸时稍微粗一点
+            } else if (drawingTool === "eraser") {
+              ctx.globalCompositeOperation = "destination-out";
+              ctx.lineWidth = 15; // 触摸时橡皮擦稍微大一点
+            }
+
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+          }
+        });
+
+        canvas.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+
+        // 防止触摸时页面滚动
+        canvas.addEventListener("touchcancel", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+      }
+
+      // 清空画布
+      function clearCanvas() {
+        const canvas = document.getElementById("logoCanvas");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      // 完成任务
+      async function completeTask() {
+        if (!currentTask) return;
+
+        // 清除倒计时
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+        }
+        countdownStartTime = null; // 清除开始时间
+
+        try {
+          const submission = new Submission();
+          submission.set("playerId", currentPlayer.id);
+          submission.set("playerName", currentPlayer.get("name"));
+          submission.set("position", currentTask.position);
+          submission.set("taskTitle", currentTask.title);
+
+          // 如果有选中的朋友，记录朋友信息
+          if (selectedFriend) {
+            submission.set("friendId", selectedFriend.id);
+            submission.set("friendName", selectedFriend.get("name"));
+          }
+
+          // 如果是等待任务，记录协作伙伴信息
+          if (taskNeedsWaiting(currentTask.position)) {
+            const collaborators = getPlayersAtPosition(currentTask.position);
+            if (collaborators.length > 0) {
+              const collaboratorNames = collaborators.map((p) => p.get("name"));
+              const collaboratorIds = collaborators.map((p) => p.id);
+              submission.set("collaboratorNames", collaboratorNames);
+              submission.set("collaboratorIds", collaboratorIds);
+              submission.set("taskType", "collaborative");
+            } else {
+              submission.set("taskType", "solo"); // 单独完成
+            }
+          }
+
+          switch (currentTask.type) {
+            case "text":
+              // 检查是否是特殊的多输入任务
+              if (currentTask.position === 7) {
+                // 相信基督教的理由任务
+                const believeReason1 =
+                  document.getElementById("believeReason1")?.value.trim() || "";
+                const believeReason2 =
+                  document.getElementById("believeReason2")?.value.trim() || "";
+                const doubtReason1 =
+                  document.getElementById("doubtReason1")?.value.trim() || "";
+                const doubtReason2 =
+                  document.getElementById("doubtReason2")?.value.trim() || "";
+
+                const content = {
+                  believeReasons: [believeReason1, believeReason2],
+                  doubtReasons: [doubtReason1, doubtReason2],
+                };
+
+                submission.set("content", JSON.stringify(content));
+                submission.set("type", "multi-text");
+              } else if (currentTask.position === 9) {
+                // 诗歌歌单任务
+                const theme =
+                  document.getElementById("playlistTheme")?.value.trim() || "";
+                const description =
+                  document
+                    .getElementById("playlistDescription")
+                    ?.value.trim() || "";
+                const songs = [];
+
+                for (let i = 1; i <= 5; i++) {
+                  const song =
+                    document.getElementById(`song${i}`)?.value.trim() || "";
+                  if (song) songs.push(song);
+                }
+
+                const content = {
+                  theme: theme,
+                  description: description,
+                  songs: songs,
+                };
+
+                submission.set("content", JSON.stringify(content));
+                submission.set("type", "playlist");
+              } else if (currentTask.position === 25) {
+                // 主日三件事任务
+                const sunday1 =
+                  document.getElementById("sunday1")?.value.trim() || "";
+                const sunday2 =
+                  document.getElementById("sunday2")?.value.trim() || "";
+                const sunday3 =
+                  document.getElementById("sunday3")?.value.trim() || "";
+
+                const content = {
+                  things: [sunday1, sunday2, sunday3].filter(
+                    (thing) => thing !== ""
+                  ),
+                };
+
+                submission.set("content", JSON.stringify(content));
+                submission.set("type", "sunday-list");
+              } else if (currentTask.position === 30) {
+                // 生命见证任务 - 过去现在未来
+                const pastWord1 =
+                  document.getElementById("pastWord1")?.value.trim() || "";
+                const pastWord2 =
+                  document.getElementById("pastWord2")?.value.trim() || "";
+                const presentWord1 =
+                  document.getElementById("presentWord1")?.value.trim() || "";
+                const presentWord2 =
+                  document.getElementById("presentWord2")?.value.trim() || "";
+                const futureWord1 =
+                  document.getElementById("futureWord1")?.value.trim() || "";
+                const futureWord2 =
+                  document.getElementById("futureWord2")?.value.trim() || "";
+
+                const content = {
+                  past: [pastWord1, pastWord2].filter((word) => word !== ""),
+                  present: [presentWord1, presentWord2].filter(
+                    (word) => word !== ""
+                  ),
+                  future: [futureWord1, futureWord2].filter(
+                    (word) => word !== ""
+                  ),
+                };
+
+                submission.set("content", JSON.stringify(content));
+                submission.set("type", "life-journey");
+              } else {
+                // 普通文本任务
+                const textInput = document.getElementById("taskTextInput");
+                if (textInput && textInput.value.trim()) {
+                  submission.set("content", textInput.value.trim());
+                  submission.set("type", "text");
+                }
+              }
+              break;
+            case "draw":
+              const canvas = document.getElementById("logoCanvas");
+              if (canvas) {
+                const dataURL = canvas.toDataURL();
+                submission.set("content", dataURL);
+                submission.set("type", "image");
+              }
+              break;
+            case "offline":
+              // 等待任务都是线下任务
+              if (taskNeedsWaiting(currentTask.position)) {
+                submission.set("content", "协作任务完成");
+                submission.set("type", "collaborative");
+              } else {
+                submission.set("content", "任务完成");
+                submission.set("type", "simple");
+              }
+              break;
+            case "penalty":
+              // 显示惩罚弹窗而不是直接倒退
+              showPenaltyModal();
+              return; // 不要立即关闭任务弹窗
+            default:
+              submission.set("content", "任务完成");
+              submission.set("type", "simple");
+              break;
+          }
+
+          await submission.save();
+
+          // 清除当前任务和选中的朋友
+          currentTask = null;
+          selectedFriend = null;
+          countdownStartTime = null; // 清除开始时间
+          closeTaskModal();
+
+          // 任务完成后重新启用掷色子按钮（仅在游戏进行中）
+          const rollButton = document.getElementById("rollDiceBtn");
+          if (
+            rollButton &&
+            gameState &&
+            gameState.get("isStarted") &&
+            !gameState.get("isEnded")
+          ) {
+            rollButton.disabled = false;
+          }
+          document.getElementById("viewTaskBtn").style.display = "none";
+        } catch (error) {
+          console.error("提交任务失败:", error);
+          alert("提交失败，请重试");
+        }
+      }
+
+      // 关闭任务弹窗
+      function closeTaskModal() {
+        document.getElementById("taskModal").classList.remove("active");
+
+        // 暂停倒计时但不清除状态
+        if (countdownInterval) {
+          clearInterval(countdownInterval);
+          countdownInterval = null;
+          // 注意：不清除 countdownStartTime，保持倒计时进度
+        }
+
+        // 如果任务还未完成，保持任务状态
+        if (currentTask) {
+          const rollButton = document.getElementById("rollDiceBtn");
+          if (
+            rollButton &&
+            gameState &&
+            gameState.get("isStarted") &&
+            !gameState.get("isEnded")
+          ) {
+            rollButton.disabled = true;
+          }
+          document.getElementById("viewTaskBtn").style.display = "inline-block";
+        }
+      } // 删除玩家
+      async function deletePlayer(player) {
+        if (!confirm(`确定要删除玩家 "${player.get("name")}" 吗？`)) {
+          return;
+        }
+
+        try {
+          await player.destroy();
+
+          // 同时删除该玩家的提交内容
+          const submissionQuery = new AV.Query(Submission);
+          submissionQuery.equalTo("playerId", player.id);
+          const submissions = await submissionQuery.find();
+          if (submissions.length > 0) {
+            await AV.Object.destroyAll(submissions);
+          }
+
+          // 刷新玩家列表
+          await loadGameState();
+
+          alert(`玩家 "${player.get("name")}" 已删除`);
+        } catch (error) {
+          console.error("删除玩家失败:", error);
+          alert("删除失败，请重试");
+        }
+      }
+
+      // 清除所有数据
+      async function clearAllData() {
+        if (
+          !confirm(
+            "⚠️ 警告：此操作将清除所有游戏数据，包括玩家信息、游戏状态和提交内容！\n\n确定要继续吗？"
+          )
+        ) {
+          return;
+        }
+
+        if (!confirm("请再次确认：真的要清除所有数据吗？此操作无法撤销！")) {
+          return;
+        }
+
+        try {
+          // 清除玩家数据
+          const playerQuery = new AV.Query(Player);
+          const playersToDelete = await playerQuery.find();
+          if (playersToDelete.length > 0) {
+            await AV.Object.destroyAll(playersToDelete);
+          }
+
+          // 清除游戏状态
+          const gameQuery = new AV.Query(GameState);
+          const gamesToDelete = await gameQuery.find();
+          if (gamesToDelete.length > 0) {
+            await AV.Object.destroyAll(gamesToDelete);
+          }
+
+          // 清除提交内容
+          const submissionQuery = new AV.Query(Submission);
+          const submissionsToDelete = await submissionQuery.find();
+          if (submissionsToDelete.length > 0) {
+            await AV.Object.destroyAll(submissionsToDelete);
+          }
+
+          // 重置界面
+          players = [];
+          gameState = null;
+          document.getElementById("playersList").innerHTML = "";
+          document.getElementById("hostBoard").innerHTML = "";
+          document.getElementById("gameInfo").innerHTML = "";
+          document.getElementById("startGameBtn").disabled = false;
+          document.getElementById("endGameBtn").disabled = true;
+
+          alert("✅ 所有数据已清除完毕！");
+        } catch (error) {
+          console.error("清除数据失败:", error);
+          alert("❌ 清除数据失败，请重试");
+        }
+      }
+
+      // 查看提交内容
+      async function showSubmissions() {
+        try {
+          const query = new AV.Query(Submission);
+          const submissions = await query.find();
+
+          // 只保留有内容的提交（文字、图片等）
+          const meaningfulSubmissions = submissions.filter((sub) => {
+            const type = sub.get("type");
+            return [
+              "text",
+              "image",
+              "multi-text",
+              "playlist",
+              "sunday-list",
+              "life-journey",
+            ].includes(type);
+          });
+
+          const content = document.getElementById("submissionsContent");
+          content.className = "submissions-container";
+          content.innerHTML = `
+                                <div class="submissions-nav">
+                                    <h2>📋 玩家提交内容</h2>
+                                    <p>点击下方按钮查看不同格子的提交内容</p>
+                                    <div class="submissions-buttons" id="submissionButtons"></div>
+                                </div>
+                                <div class="submissions-content" id="submissionDetails"></div>
+                            `;
+
+          // 按格子分组
+          const groupedSubmissions = {};
+          meaningfulSubmissions.forEach((sub) => {
+            const pos = sub.get("position");
+            if (!groupedSubmissions[pos]) {
+              groupedSubmissions[pos] = [];
+            }
+            groupedSubmissions[pos].push(sub);
+          });
+
+          // 创建格子按钮
+          const buttonsContainer = document.getElementById("submissionButtons");
+          for (let pos of Object.keys(groupedSubmissions).sort(
+            (a, b) => a - b
+          )) {
+            const button = document.createElement("button");
+            button.className = "submission-nav-btn";
+            button.textContent = `格子${pos}: ${tasks[pos]?.title || "未知"}`;
+            button.onclick = () =>
+              showSubmissionDetails(pos, groupedSubmissions[pos]);
+            buttonsContainer.appendChild(button);
+          }
+
+          showScreen("submissionsScreen");
+        } catch (error) {
+          console.error("加载提交内容失败:", error);
+        }
+      }
+
+      function showSubmissionDetails(position, submissions) {
+        // 移除所有按钮的active状态
+        document
+          .querySelectorAll(".submission-nav-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+
+        // 添加当前按钮的active状态
+        event.target.classList.add("active");
+
+        const detailsContainer = document.getElementById("submissionDetails");
+        let content = `<h3>格子${position}: ${tasks[position]?.title}</h3>`;
+
+        // 根据不同格子显示不同内容
+        if (position == "2") {
+          // 经文 - 显示每个玩家
+          content += '<div class="scripture-submissions">';
+          submissions.forEach((sub) => {
+            content += `
+                                    <div class="scripture-item">
+                                        <div class="player-name">${sub.get(
+                                          "playerName"
+                                        )}</div>
+                                        <p>${sub.get("content")}</p>
+                                    </div>
+                                `;
+          });
+          content += "</div>";
+        } else if (position == "4") {
+          // Logo设计 - 显示图片
+          content += '<div class="logo-submissions">';
+          submissions.forEach((sub) => {
+            content += `
+                                    <div class="logo-item">
+                                        <div class="player-name">${sub.get(
+                                          "playerName"
+                                        )}</div>
+                                        <img src="${sub.get(
+                                          "content"
+                                        )}" class="logo-image" alt="Logo设计">
+                                    </div>
+                                `;
+          });
+          content += "</div>";
+        } else if (position == "7") {
+          // 相信/不相信理由 - 分列显示，匿名
+          const believeReasons = [];
+          const doubtReasons = [];
+
+          submissions.forEach((sub) => {
+            try {
+              const parsed = JSON.parse(sub.get("content"));
+              believeReasons.push(
+                ...parsed.believeReasons.filter((r) => r.trim())
+              );
+              doubtReasons.push(...parsed.doubtReasons.filter((r) => r.trim()));
+            } catch (e) {}
+          });
+
+          content += `
+                                <div class="reasons-display">
+                                    <div class="believe-column">
+                                        <h4 class="believe-title">✅ 相信基督教的理由</h4>
+                                        ${believeReasons
+                                          .map(
+                                            (reason) =>
+                                              `<div class="reason-item">${reason}</div>`
+                                          )
+                                          .join("")}
+                                    </div>
+                                    <div class="doubt-column">
+                                        <h4 class="doubt-title">❓ 不相信基督教的理由</h4>
+                                        ${doubtReasons
+                                          .map(
+                                            (reason) =>
+                                              `<div class="reason-item">${reason}</div>`
+                                          )
+                                          .join("")}
+                                    </div>
+                                </div>
+                            `;
+        } else if (position == "9") {
+          // 赞美诗歌单 - 个人显示
+          content += '<div class="playlist-submissions">';
+          submissions.forEach((sub) => {
+            try {
+              const parsed = JSON.parse(sub.get("content"));
+              content += `
+                                        <div class="playlist-item">
+                                            <div class="player-name">${sub.get(
+                                              "playerName"
+                                            )}</div>
+                                            <div class="playlist-theme">${
+                                              parsed.theme
+                                            }</div>
+                                            <div class="playlist-description">${
+                                              parsed.description
+                                            }</div>
+                                            <div class="playlist-songs">
+                                                <ol>${parsed.songs
+                                                  .map(
+                                                    (song) => `<li>${song}</li>`
+                                                  )
+                                                  .join("")}</ol>
+                                            </div>
+                                        </div>
+                                    `;
+            } catch (e) {}
+          });
+          content += "</div>";
+        } else if (position == "14") {
+          // 信仰改变 - 匿名泡泡
+          content +=
+            '<div class="bubble-submissions"><h4>💭 需要改变的地方</h4>';
+          submissions.forEach((sub) => {
+            content += `<div class="thought-bubble">${sub.get(
+              "content"
+            )}</div>`;
+          });
+          content += "</div>";
+        } else if (position == "21") {
+          // 感恩事情 - 匿名泡泡
+          content += '<div class="bubble-submissions"><h4>🙏 感恩的事情</h4>';
+          submissions.forEach((sub) => {
+            content += `<div class="gratitude-bubble">${sub.get(
+              "content"
+            )}</div>`;
+          });
+          content += "</div>";
+        } else if (position == "25") {
+          // 主日三件事任务 - 不匿名
+          content += '<div class="sunday-submissions">';
+          submissions.forEach((sub) => {
+            try {
+              const parsed = JSON.parse(sub.get("content"));
+              const things = parsed.things || [];
+              content += `
+              <div class="sunday-item">
+                <div class="player-name">${sub.get("playerName")}</div>
+                <div class="sunday-things">
+                  ${things
+                    .map(
+                      (thing, index) =>
+                        `<div class="sunday-thing">
+                      <span class="thing-number">${index + 1}.</span>
+                      <span class="thing-text">${thing}</span>
+                    </div>`
+                    )
+                    .join("")}
+                </div>
+              </div>
+            `;
+            } catch (e) {
+              // 如果解析失败，显示原始内容
+              content += `
+              <div class="sunday-item">
+                <div class="player-name">${sub.get("playerName")}</div>
+                <p>${sub.get("content")}</p>
+              </div>
+            `;
+            }
+          });
+          content += "</div>";
+        } else if (position == "30") {
+          // 生命见证 - 匿名分类显示
+          const pastWords = [];
+          const presentWords = [];
+          const futureWords = [];
+
+          submissions.forEach((sub) => {
+            try {
+              const parsed = JSON.parse(sub.get("content"));
+              pastWords.push(...(parsed.past || []).filter((w) => w.trim()));
+              presentWords.push(
+                ...(parsed.present || []).filter((w) => w.trim())
+              );
+              futureWords.push(
+                ...(parsed.future || []).filter((w) => w.trim())
+              );
+            } catch (e) {}
+          });
+
+          content += `
+                  <div class="life-journey-display">
+                    <div class="journey-column past">
+                      <h4 class="past-title">🔙 过去的生命</h4>
+                      ${pastWords
+                        .map(
+                          (word) =>
+                            `<div class="journey-bubble past-bubble">${word}</div>`
+                        )
+                        .join("")}
+                    </div>
+                    <div class="journey-column present">
+                      <h4 class="present-title">🔄 现在的生命</h4>
+                      ${presentWords
+                        .map(
+                          (word) =>
+                            `<div class="journey-bubble present-bubble">${word}</div>`
+                        )
+                        .join("")}
+                    </div>
+                    <div class="journey-column future">
+                      <h4 class="future-title">🔮 未来的展望</h4>
+                      ${futureWords
+                        .map(
+                          (word) =>
+                            `<div class="journey-bubble future-bubble">${word}</div>`
+                        )
+                        .join("")}
+                    </div>
+                  </div>
+                `;
+        }
+
+        detailsContainer.innerHTML = content;
+      }
+      // 事件监听
+      document.addEventListener("DOMContentLoaded", () => {
+        initializeApp();
+
+        // 强力禁用下拉刷新
+        let startY = 0;
+
+        document.addEventListener(
+          "touchstart",
+          (e) => {
+            startY = e.touches[0].clientY;
+          },
+          { passive: false }
+        );
+
+        document.addEventListener(
+          "touchmove",
+          (e) => {
+            const currentY = e.touches[0].clientY;
+            const deltaY = currentY - startY;
+
+            // 如果是向下滑动且页面在顶部，阻止默认行为
+            if (deltaY > 0 && window.pageYOffset === 0) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          },
+          { passive: false }
+        );
+
+        document.addEventListener(
+          "touchend",
+          (e) => {
+            startY = 0;
+          },
+          { passive: false }
+        );
+
+        // 额外的防护措施
+        document.addEventListener(
+          "scroll",
+          (e) => {
+            if (window.pageYOffset < 0) {
+              window.scrollTo(0, 0);
+            }
+          },
+          { passive: false }
+        );
+
+        // 禁用某些手势
+        document.addEventListener(
+          "gesturestart",
+          (e) => {
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+
+        document.addEventListener(
+          "gesturechange",
+          (e) => {
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+
+        document.addEventListener(
+          "gestureend",
+          (e) => {
+            e.preventDefault();
+          },
+          { passive: false }
+        );
+
+        // 玩家表单提交
+        document
+          .getElementById("playerForm")
+          .addEventListener("submit", registerPlayer);
+
+        // 头像预览更新
+        document
+          .getElementById("playerName")
+          .addEventListener("input", updateAvatarPreview);
+
+        // 头像上传处理
+        document
+          .getElementById("playerAvatar")
+          .addEventListener("change", handleAvatarUpload);
+      });
+
+      function showPenaltyModal() {
+        const penaltyModal = document.createElement("div");
+        penaltyModal.className = "penalty-modal active";
+        penaltyModal.innerHTML = `
+                            <div class="penalty-content">
+                                <div class="penalty-emoji">😢</div>
+                                <h3>遇到挫折了！</h3>
+                                <div class="penalty-details">
+                                    <p>💔 软弱让你倒退了...</p>
+                                    <p>📖 ${currentTask.content}</p>
+                                </div>
+                                <button class="button penalty-btn" onclick="executePenalty()">接受惩罚</button>
+                            </div>
+                        `;
+        document.body.appendChild(penaltyModal);
+      }
+
+      // 修改executePenalty函数中的任务调用
+      async function executePenalty() {
+        // 关闭惩罚弹窗
+        document.querySelector(".penalty-modal").remove();
+
+        // 执行倒退
+        if (currentTask.content.includes("退后一格")) {
+          const newPos = Math.max(0, currentPlayer.get("position") - 1);
+          currentPlayer.set("position", newPos);
+          await currentPlayer.save();
+          await loadGameState();
+
+          // 清除当前任务状态
+          currentTask = null;
+          selectedFriend = null;
+
+          // 重新启用掷色子按钮
+          const rollButton = document.getElementById("rollDiceBtn");
+          if (
+            rollButton &&
+            gameState &&
+            gameState.get("isStarted") &&
+            !gameState.get("isEnded")
+          ) {
+            rollButton.disabled = false;
+          }
+          document.getElementById("viewTaskBtn").style.display = "none";
+
+          // 检查新位置是否有任务 - 改为调用showTaskPreview
+          if (tasks[newPos] && newPos !== 0) {
+            setTimeout(() => {
+              showTaskPreview(newPos); // 这里改了
+            }, 1000);
+          }
+        }
+      }
+      function showFireworks() {
+        const fireworksContainer = document.createElement("div");
+        fireworksContainer.className = "fireworks-container";
+        fireworksContainer.style.display = "flex";
+        fireworksContainer.innerHTML = `
+                            <canvas id="fireworksCanvas"></canvas>
+                            <div class="celebration-text">
+                                <h1>🎉 恭喜完成信仰之路！ 🎉</h1>
+                                <p>愿主祝福你成为成熟的基督徒！</p>
+                            </div>
+                        `;
+        document.body.appendChild(fireworksContainer);
+
+        // 初始化烟花动画
+        initFireworks();
+
+        // 5秒后自动关闭
+        setTimeout(() => {
+          fireworksContainer.remove();
+        }, 5000);
+      }
+
+      function initFireworks() {
+        const canvas = document.getElementById("fireworksCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const fireworks = [];
+        const particles = [];
+
+        // 烟花动画逻辑
+        function createFirework() {
+          fireworks.push({
+            x: Math.random() * canvas.width,
+            y: canvas.height,
+            targetY: Math.random() * canvas.height * 0.5,
+            color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+            exploded: false,
+            life: 0,
+          });
+        }
+
+        function animate() {
+          ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          // 创建烟花
+          if (Math.random() < 0.1) {
+            createFirework();
+          }
+
+          // 更新烟花
+          fireworks.forEach((firework, index) => {
+            if (!firework.exploded) {
+              firework.y -= 5;
+              ctx.fillStyle = firework.color;
+              ctx.fillRect(firework.x, firework.y, 2, 10);
+
+              if (firework.y <= firework.targetY) {
+                // 爆炸
+                firework.exploded = true;
+                for (let i = 0; i < 30; i++) {
+                  particles.push({
+                    x: firework.x,
+                    y: firework.y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    color: firework.color,
+                    life: 50,
+                  });
+                }
+                fireworks.splice(index, 1);
+              }
+            }
+          });
+
+          // 更新粒子
+          particles.forEach((particle, index) => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.vy += 0.1; // 重力
+            particle.life--;
+
+            ctx.globalAlpha = particle.life / 50;
+            ctx.fillStyle = particle.color;
+            ctx.fillRect(particle.x, particle.y, 2, 2);
+
+            if (particle.life <= 0) {
+              particles.splice(index, 1);
+            }
+          });
+
+          ctx.globalAlpha = 1;
+          requestAnimationFrame(animate);
+        }
+
+        animate();
+      }
+
+      // 创建主持人文本输入界面
+      function createHostTextInput(position, container) {
+        if (position === 7) {
+          // 相信基督教的理由任务
+          container.innerHTML = `
+            <div class="reasons-container">
+              <div class="reason-section believe">
+                <h5>✅ 相信基督教的理由</h5>
+                <div class="input-group">
+                  <label>理由1:</label>
+                  <textarea id="hostBelieveReason1" placeholder="请输入第一个相信的理由..." rows="3"></textarea>
+                </div>
+                <div class="input-group">
+                  <label>理由2:</label>
+                  <textarea id="hostBelieveReason2" placeholder="请输入第二个相信的理由..." rows="3"></textarea>
+                </div>
+              </div>
+              <div class="reason-section doubt">
+                <h5>❓ 不相信基督教的理由</h5>
+                <div class="input-group">
+                  <label>理由1:</label>
+                  <textarea id="hostDoubtReason1" placeholder="请输入第一个不相信的理由..." rows="3"></textarea>
+                </div>
+                <div class="input-group">
+                  <label>理由2:</label>
+                  <textarea id="hostDoubtReason2" placeholder="请输入第二个不相信的理由..." rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (position === 9) {
+          // 诗歌歌单任务
+          container.innerHTML = `
+            <div class="multi-input-container">
+              <div class="input-group">
+                <label>🎵 歌单主题:</label>
+                <input type="text" id="hostPlaylistTheme" placeholder="请输入歌单的主题..." />
+              </div>
+              <div class="input-group">
+                <label>📝 主题描述:</label>
+                <textarea id="hostPlaylistDescription" placeholder="请描述这个主题的含义和选择原因..." rows="3"></textarea>
+              </div>
+              <div class="input-group">
+                <label>🎼 歌曲列表:</label>
+                <div class="songs-list">
+                  <div class="song-item">
+                    <div class="song-number">1</div>
+                    <input type="text" class="song-input" id="hostSong1" placeholder="第一首歌曲名称..." />
+                  </div>
+                  <div class="song-item">
+                    <div class="song-number">2</div>
+                    <input type="text" class="song-input" id="hostSong2" placeholder="第二首歌曲名称..." />
+                  </div>
+                  <div class="song-item">
+                    <div class="song-number">3</div>
+                    <input type="text" class="song-input" id="hostSong3" placeholder="第三首歌曲名称..." />
+                  </div>
+                  <div class="song-item">
+                    <div class="song-number">4</div>
+                    <input type="text" class="song-input" id="hostSong4" placeholder="第四首歌曲名称..." />
+                  </div>
+                  <div class="song-item">
+                    <div class="song-number">5</div>
+                    <input type="text" class="song-input" id="hostSong5" placeholder="第五首歌曲名称..." />
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+        } else if (position === 25) {
+          // 主日三件事任务
+          container.innerHTML = `
+            <div class="multi-input-container">
+              <div class="input-group">
+                <label>⛪ 第一件事:</label>
+                <input type="text" id="hostSunday1" placeholder="请输入你只在主日做的第一件事..." />
+              </div>
+              <div class="input-group">
+                <label>📿 第二件事:</label>
+                <input type="text" id="hostSunday2" placeholder="请输入你只在主日做的第二件事..." />
+              </div>
+              <div class="input-group">
+                <label>🙏 第三件事:</label>
+                <input type="text" id="hostSunday3" placeholder="请输入你只在主日做的第三件事..." />
+              </div>
+            </div>
+          `;
+        } else if (position === 30) {
+          // 生命见证任务
+          container.innerHTML = `
+            <div class="life-journey-container">
+              <div class="journey-section past">
+                <h5>🔙 过去的生命</h5>
+                <div class="input-group">
+                  <label>词语1:</label>
+                  <input type="text" id="hostPastWord1" placeholder="描述你过去生命的第一个词语..." />
+                </div>
+                <div class="input-group">
+                  <label>词语2:</label>
+                  <input type="text" id="hostPastWord2" placeholder="描述你过去生命的第二个词语..." />
+                </div>
+              </div>
+              <div class="journey-section present">
+                <h5>🔄 现在的生命</h5>
+                <div class="input-group">
+                  <label>词语1:</label>
+                  <input type="text" id="hostPresentWord1" placeholder="描述你现在生命的第一个词语..." />
+                </div>
+                <div class="input-group">
+                  <label>词语2:</label>
+                  <input type="text" id="hostPresentWord2" placeholder="描述你现在生命的第二个词语..." />
+                </div>
+              </div>
+              <div class="journey-section future">
+                <h5>🔮 未来的展望</h5>
+                <div class="input-group">
+                  <label>词语1:</label>
+                  <input type="text" id="hostFutureWord1" placeholder="描述你未来展望的第一个词语..." />
+                </div>
+                <div class="input-group">
+                  <label>词语2:</label>
+                  <input type="text" id="hostFutureWord2" placeholder="描述你未来展望的第二个词语..." />
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          // 普通文本任务
+          container.innerHTML =
+            '<textarea class="task-textarea" id="hostTaskTextInput" rows="4" placeholder="请输入内容..."></textarea>';
+        }
+      }
+
+      // 创建主持人绘画输入界面
+      function createHostDrawInput(container) {
+        container.innerHTML = `
+          <div class="canvas-container">
+            <canvas id="hostLogoCanvas" width="500" height="300"></canvas>
+            <div class="canvas-tools">
+              <div class="color-palette">
+                <div class="color-btn active" style="background-color: #000000" onclick="setHostDrawingColor('#000000')"></div>
+                <div class="color-btn" style="background-color: #ff0000" onclick="setHostDrawingColor('#ff0000')"></div>
+                <div class="color-btn" style="background-color: #00ff00" onclick="setHostDrawingColor('#00ff00')"></div>
+                <div class="color-btn" style="background-color: #0000ff" onclick="setHostDrawingColor('#0000ff')"></div>
+              </div>
+              <div class="tool-buttons">
+                <div class="tool-btn active" onclick="setHostDrawingTool('pen')">画笔</div>
+                <div class="tool-btn" onclick="setHostDrawingTool('eraser')">橡皮</div>
+                <button class="button" onclick="clearHostCanvas()">清空</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // 初始化主持人画布
+        initHostCanvas();
+      }
+
+      // 主持人绘画工具函数
+      function setHostDrawingColor(color) {
+        drawingColor = color;
+        drawingTool = "pen";
+
+        document
+          .querySelectorAll("#hostTaskInputModal .color-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        event.target.classList.add("active");
+
+        document
+          .querySelectorAll("#hostTaskInputModal .tool-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        document
+          .querySelector(
+            "#hostTaskInputModal .tool-btn[onclick=\"setHostDrawingTool('pen')\"]"
+          )
+          .classList.add("active");
+      }
+
+      function setHostDrawingTool(tool) {
+        drawingTool = tool;
+
+        document
+          .querySelectorAll("#hostTaskInputModal .tool-btn")
+          .forEach((btn) => btn.classList.remove("active"));
+        event.target.classList.add("active");
+      }
+
+      function clearHostCanvas() {
+        const canvas = document.getElementById("hostLogoCanvas");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+
+      function initHostCanvas() {
+        const canvas = document.getElementById("hostLogoCanvas");
+        const ctx = canvas.getContext("2d");
+        let isDrawing = false;
+
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+
+        // 获取正确的坐标位置
+        function getCanvasCoordinates(e, canvas) {
+          const rect = canvas.getBoundingClientRect();
+          const scaleX = canvas.width / rect.width;
+          const scaleY = canvas.height / rect.height;
+
+          if (e.touches && e.touches.length > 0) {
+            const touch = e.touches[0];
+            return {
+              x: (touch.clientX - rect.left) * scaleX,
+              y: (touch.clientY - rect.top) * scaleY,
+            };
+          } else {
+            return {
+              x: (e.clientX - rect.left) * scaleX,
+              y: (e.clientY - rect.top) * scaleY,
+            };
+          }
+        }
+
+        // 鼠标和触摸事件
+        canvas.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          isDrawing = true;
+          const coords = getCanvasCoordinates(e, canvas);
+          ctx.beginPath();
+          ctx.moveTo(coords.x, coords.y);
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+          e.preventDefault();
+          if (isDrawing) {
+            const coords = getCanvasCoordinates(e, canvas);
+
+            if (drawingTool === "pen") {
+              ctx.globalCompositeOperation = "source-over";
+              ctx.strokeStyle = drawingColor;
+              ctx.lineWidth = 2;
+            } else if (drawingTool === "eraser") {
+              ctx.globalCompositeOperation = "destination-out";
+              ctx.lineWidth = 10;
+            }
+
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+          }
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+
+        // 触摸事件
+        canvas.addEventListener("touchstart", (e) => {
+          e.preventDefault();
+          if (e.touches.length === 1) {
+            isDrawing = true;
+            const coords = getCanvasCoordinates(e, canvas);
+            ctx.beginPath();
+            ctx.moveTo(coords.x, coords.y);
+          }
+        });
+
+        canvas.addEventListener("touchmove", (e) => {
+          e.preventDefault();
+          if (isDrawing && e.touches.length === 1) {
+            const coords = getCanvasCoordinates(e, canvas);
+
+            if (drawingTool === "pen") {
+              ctx.globalCompositeOperation = "source-over";
+              ctx.strokeStyle = drawingColor;
+              ctx.lineWidth = 3;
+            } else if (drawingTool === "eraser") {
+              ctx.globalCompositeOperation = "destination-out";
+              ctx.lineWidth = 15;
+            }
+
+            ctx.lineTo(coords.x, coords.y);
+            ctx.stroke();
+          }
+        });
+
+        canvas.addEventListener("touchend", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+
+        canvas.addEventListener("touchcancel", (e) => {
+          e.preventDefault();
+          isDrawing = false;
+        });
+      }
+      // 提交主持人任务
+      async function submitHostTask() {
+        const position = window.currentHostTaskPosition;
+        if (position === undefined) return;
+
+        try {
+          const submission = new Submission();
+          submission.set("playerId", "HOST");
+          submission.set("playerName", "主持人");
+          submission.set("position", position);
+          submission.set("taskTitle", tasks[position].title);
+
+          const task = tasks[position];
+
+          if (task.type === "text") {
+            // 处理不同类型的文本任务
+            if (position === 7) {
+              const content = {
+                believeReasons: [
+                  document.getElementById("hostBelieveReason1")?.value.trim() ||
+                    "",
+                  document.getElementById("hostBelieveReason2")?.value.trim() ||
+                    "",
+                ],
+                doubtReasons: [
+                  document.getElementById("hostDoubtReason1")?.value.trim() ||
+                    "",
+                  document.getElementById("hostDoubtReason2")?.value.trim() ||
+                    "",
+                ],
+              };
+              submission.set("content", JSON.stringify(content));
+              submission.set("type", "multi-text");
+            } else if (position === 9) {
+              const content = {
+                theme:
+                  document.getElementById("hostPlaylistTheme")?.value.trim() ||
+                  "",
+                description:
+                  document
+                    .getElementById("hostPlaylistDescription")
+                    ?.value.trim() || "",
+                songs: [],
+              };
+
+              for (let i = 1; i <= 5; i++) {
+                const song =
+                  document.getElementById(`hostSong${i}`)?.value.trim() || "";
+                if (song) content.songs.push(song);
+              }
+
+              submission.set("content", JSON.stringify(content));
+              submission.set("type", "playlist");
+            } else if (position === 25) {
+              const content = {
+                things: [
+                  document.getElementById("hostSunday1")?.value.trim() || "",
+                  document.getElementById("hostSunday2")?.value.trim() || "",
+                  document.getElementById("hostSunday3")?.value.trim() || "",
+                ].filter((thing) => thing !== ""),
+              };
+              submission.set("content", JSON.stringify(content));
+              submission.set("type", "sunday-list");
+            } else if (position === 30) {
+              const content = {
+                past: [
+                  document.getElementById("hostPastWord1")?.value.trim() || "",
+                  document.getElementById("hostPastWord2")?.value.trim() || "",
+                ].filter((word) => word !== ""),
+                present: [
+                  document.getElementById("hostPresentWord1")?.value.trim() ||
+                    "",
+                  document.getElementById("hostPresentWord2")?.value.trim() ||
+                    "",
+                ].filter((word) => word !== ""),
+                future: [
+                  document.getElementById("hostFutureWord1")?.value.trim() ||
+                    "",
+                  document.getElementById("hostFutureWord2")?.value.trim() ||
+                    "",
+                ].filter((word) => word !== ""),
+              };
+              submission.set("content", JSON.stringify(content));
+              submission.set("type", "life-journey");
+            } else {
+              const textInput = document.getElementById("hostTaskTextInput");
+              if (textInput && textInput.value.trim()) {
+                submission.set("content", textInput.value.trim());
+                submission.set("type", "text");
+              }
+            }
+          } else if (task.type === "draw") {
+            const canvas = document.getElementById("hostLogoCanvas");
+            if (canvas) {
+              const dataURL = canvas.toDataURL();
+              submission.set("content", dataURL);
+              submission.set("type", "image");
+            }
+          }
+
+          await submission.save();
+          alert("任务提交成功！");
+          closeHostTaskInputModal();
+        } catch (error) {
+          console.error("提交任务失败:", error);
+          alert("提交失败，请重试");
+        }
+      }
+
+      // 关闭主持人任务输入弹窗
+      function closeHostTaskInputModal() {
+        document
+          .getElementById("hostTaskInputModal")
+          .classList.remove("active");
+        window.currentHostTaskPosition = undefined;
+      }
+      // 显示添加任务弹窗
+      function showAddTaskModal() {
+        document.getElementById("addTaskModal").classList.add("active");
+      }
+
+      // 关闭添加任务弹窗
+      function closeAddTaskModal() {
+        document.getElementById("addTaskModal").classList.remove("active");
+        document.getElementById("hostTaskNumber").value = "";
+      }
+
+      // 开始添加任务
+      function startAddTask() {
+        const taskNumber = document.getElementById("hostTaskNumber").value;
+        const position = parseInt(taskNumber);
+
+        if (isNaN(position) || position < 0 || position > 31) {
+          alert("请输入有效的格子号码 (0-31)");
+          return;
+        }
+
+        const task = tasks[position];
+        if (!task) {
+          alert("该格子没有任务");
+          return;
+        }
+
+        // 只允许可输入内容的任务类型
+        if (!["text", "draw"].includes(task.type)) {
+          alert("该格子的任务类型不支持主持人输入");
+          return;
+        }
+
+        // 关闭选择弹窗
+        closeAddTaskModal();
+
+        // 显示任务输入弹窗
+        showHostTaskInput(position);
+      }
+
+      // 修改原有的showHostTaskInput函数，接受position参数
+      function showHostTaskInput(position) {
+        const task = tasks[position];
+
+        document.getElementById(
+          "hostTaskInputTitle"
+        ).textContent = `格子${position}: ${task.title}`;
+        document.getElementById("hostTaskInputDescription").textContent =
+          task.content;
+
+        const inputArea = document.getElementById("hostTaskInputArea");
+        inputArea.innerHTML = "";
+
+        // 根据任务类型创建输入界面
+        switch (task.type) {
+          case "text":
+            createHostTextInput(position, inputArea);
+            break;
+          case "draw":
+            createHostDrawInput(inputArea);
+            break;
+        }
+
+        // 存储当前任务位置
+        window.currentHostTaskPosition = position;
+
+        document.getElementById("hostTaskInputModal").classList.add("active");
+      }
+      // 显示任务预览（第一阶段）
+      function showTaskPreview(position) {
+        // 隐藏任务标题，只在描述中显示
+        document.getElementById("taskTitle").style.display = "none";
+        const task = tasks[position];
+        if (!task) return;
+
+        currentTask = { position, ...task };
+
+        // 显示任务时禁用掷色子按钮，显示查看任务按钮
+        document.getElementById("rollDiceBtn").disabled = true;
+        document.getElementById("viewTaskBtn").style.display = "inline-block";
+
+        // 获取地点信息
+        const location = getLocationName(position);
+        const locationText = location ? `📍 当前位置：${location}` : "";
+        document.getElementById("taskDescription").innerHTML = `
+      <div style="text-align: center; padding: 20px;">
+        ${
+          locationText
+            ? `<p style="color: #667eea; font-weight: bold; margin-bottom: 15px; font-size: 16px;">${locationText}</p>`
+            : ""
+        }
+        <div style="font-size: 48px; margin: 20px 0;">${
+          task.title.split(" ")[0]
+        }</div>
+        <h3 style="color: #333; margin-bottom: 20px;">${task.title.substring(
+          task.title.indexOf(" ") + 1
+        )}</h3>
+        <p style="font-size: 16px; color: #666; line-height: 1.6; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 10px;">${
+          task.story || "在这里发生了一些事情..."
+        }</p>
+        <button class="button" style="font-size: 16px; padding: 15px 30px;" onclick="showFullTask()">
+          📋 查看具体任务
+        </button>
+      </div>
+      `;
+
+        const inputDiv = document.getElementById("taskInput");
+        inputDiv.innerHTML = "";
+
+        // 隐藏完成任务按钮
+        document.getElementById("completeTaskBtn").style.display = "none";
+        document.getElementById("taskModal").classList.add("active");
+      }
+      // 显示完整任务（第二阶段）
+      function showFullTask() {
+        // 恢复显示任务标题
+        document.getElementById("taskTitle").style.display = "block";
+        if (!currentTask) return;
+
+        const position = currentTask.position;
+        const task = currentTask;
+
+        // 更新任务描述为完整内容
+        document.getElementById("taskDescription").innerHTML = `
+          <div style="margin-bottom: 15px;">
+            <p style="font-size: 16px; color: #666; line-height: 1.6; margin-bottom: 15px; background: #f8f9fa; padding: 15px; border-radius: 10px;">${task.content}</p>
+            <button class="button" style="background: #6c757d; font-size: 14px; padding: 8px 16px; margin-top: 10px;" onclick="showStoryBackground()">
+              📖 查看故事背景
+            </button>
+          </div>
+        `;
+        // 检查是否是等待任务
+        if (taskNeedsWaiting(position)) {
+          // 检查是否有其他玩家在相同位置
+          const playersAtSamePosition = getPlayersAtPosition(position);
+          const allPlayersPassed = allOtherPlayersPassed(position);
+
+          if (playersAtSamePosition.length > 0) {
+            showCollaborativeTask(position, playersAtSamePosition);
+            return;
+          } else if (allPlayersPassed) {
+            showWaitingTaskWithContinueOption(position);
+            return;
+          } else {
+            showWaitingTask(position);
+            return;
+          }
+        }
+
+        // 检查是否需要选择朋友
+        if (taskNeedsFriend(position)) {
+          const needsSameGender = taskNeedsSameGender(position);
+          selectedFriend = selectRandomFriend(needsSameGender);
+
+          if (!selectedFriend) {
+            if (needsSameGender) {
+              alert("没有找到相同性别的其他玩家来完成此任务！");
+            } else {
+              alert("没有找到其他玩家来完成此任务！");
+            }
+          }
+        } else {
+          selectedFriend = null;
+        }
+
+        const inputDiv = document.getElementById("taskInput");
+        inputDiv.innerHTML = "";
+
+        // 如果有选中的朋友，显示朋友信息
+        if (selectedFriend) {
+          const friendDiv = document.createElement("div");
+          friendDiv.className = "selected-friend";
+
+          const friendAvatarStyle = selectedFriend.get("avatar")
+            ? `background-image: url(${selectedFriend.get("avatar")})`
+            : `background-color: ${selectedFriend.get("avatarColor")}`;
+
+          const friendAvatarContent = selectedFriend.get("avatar")
+            ? ""
+            : selectedFriend.get("avatarInitial");
+
+          friendDiv.innerHTML = `
+            <h4>🤝 你的任务伙伴</h4>
+            <div class="friend-info">
+              <div class="friend-avatar" style="${friendAvatarStyle}">${friendAvatarContent}</div>
+              <div class="friend-name">${selectedFriend.get("name")}</div>
+            </div>
+          `;
+          inputDiv.appendChild(friendDiv);
+        }
+
+        switch (task.type) {
+          case "penalty":
+            showPenaltyModal();
+            return;
+          case "text":
+            // 这里保持原有的文本任务逻辑
+            if (position === 7) {
+              inputDiv.innerHTML += `
+                                    <div class="reasons-container">
+                                      <div class="reason-section believe">
+                                        <h5>✅ 相信基督教的理由</h5>
+                                        <div class="input-group">
+                                          <label>理由1:</label>
+                                          <textarea id="believeReason1" placeholder="请输入第一个相信的理由..." rows="3"></textarea>
+                                        </div>
+                                        <div class="input-group">
+                                          <label>理由2:</label>
+                                          <textarea id="believeReason2" placeholder="请输入第二个相信的理由..." rows="3"></textarea>
+                                        </div>
+                                      </div>
+                                      <div class="reason-section doubt">
+                                        <h5>❓ 不相信基督教的理由</h5>
+                                        <div class="input-group">                      <label>理由1:</label>
+                                          <textarea id="doubtReason1" placeholder="请输入第一个不相信的理由..." rows="3"></textarea>
+                                        </div>
+                                        <div class="input-group">
+                                          <label>理由2:</label>
+                                          <textarea id="doubtReason2" placeholder="请输入第二个不相信的理由..." rows="3"></textarea>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+            } else if (position === 9) {
+              inputDiv.innerHTML += `
+                                    <div class="multi-input-container">
+                                      <div class="input-group">
+                                        <label>🎵 歌单主题:</label>
+                                        <input type="text" id="playlistTheme" placeholder="请输入歌单的主题..." />
+                                      </div>
+                                      <div class="input-group">
+                                        <label>📝 主题描述:</label>
+                                        <textarea id="playlistDescription" placeholder="请描述这个主题的含义和选择原因..." rows="3"></textarea>
+                                      </div>
+                                      <div class="input-group">
+                                        <label>🎼 歌曲列表:</label>
+                                        <div class="songs-list">
+                                          <div class="song-item">
+                                            <div class="song-number">1</div>
+                                            <input type="text" class="song-input" id="song1" placeholder="第一首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">2</div>
+                                            <input type="text" class="song-input" id="song2" placeholder="第二首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">3</div>
+                                            <input type="text" class="song-input" id="song3" placeholder="第三首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">4</div>
+                                            <input type="text" class="song-input" id="song4" placeholder="第四首歌曲名称..." />
+                                          </div>
+                                          <div class="song-item">
+                                            <div class="song-number">5</div>
+                                            <input type="text" class="song-input" id="song5" placeholder="第五首歌曲名称..." />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+            } else if (position === 25) {
+              inputDiv.innerHTML += `
+                          <div class="multi-input-container">
+                            <div class="input-group">
+                              <label>⛪ 第一件事:</label>
+                              <input type="text" id="sunday1" placeholder="请输入你只在主日做的第一件事..." />
+                            </div>
+                            <div class="input-group">
+                              <label>📿 第二件事:</label>
+                              <input type="text" id="sunday2" placeholder="请输入你只在主日做的第二件事..." />
+                            </div>
+                            <div class="input-group">
+                              <label>🙏 第三件事:</label>
+                              <input type="text" id="sunday3" placeholder="请输入你只在主日做的第三件事..." />
+                            </div>
+                          </div>
+                        `;
+            } else if (position === 30) {
+              inputDiv.innerHTML += `
+          <div class="life-journey-container">
+            <div class="journey-section past">
+              <h5>🔙 过去的生命</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="pastWord1" placeholder="描述你过去生命的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="pastWord2" placeholder="描述你过去生命的第二个词语..." />
+              </div>
+            </div>
+            <div class="journey-section present">
+              <h5>🔄 现在的生命</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="presentWord1" placeholder="描述你现在生命的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="presentWord2" placeholder="描述你现在生命的第二个词语..." />
+              </div>
+            </div>
+            <div class="journey-section future">
+              <h5>🔮 未来的展望</h5>
+              <div class="input-group">
+                <label>词语1:</label>
+                <input type="text" id="futureWord1" placeholder="描述你未来展望的第一个词语..." />
+              </div>
+              <div class="input-group">
+                <label>词语2:</label>
+                <input type="text" id="futureWord2" placeholder="描述你未来展望的第二个词语..." />
+              </div>
+            </div>
+          </div>
+        `;
+            } else {
+              inputDiv.innerHTML +=
+                '<textarea class="task-textarea" id="taskTextInput" rows="4" placeholder="请输入你的答案..."></textarea>';
+            }
+            break;
+          case "draw":
+            inputDiv.innerHTML += `
+              <div class="canvas-container">
+                <canvas id="logoCanvas" width="500" height="300"></canvas>
+                <div class="canvas-tools">
+                  <div class="color-palette">
+                    <div class="color-btn active" style="background-color: #000000" onclick="setDrawingColor('#000000')"></div>
+                    <div class="color-btn" style="background-color: #ff0000" onclick="setDrawingColor('#ff0000')"></div>
+                    <div class="color-btn" style="background-color: #00ff00" onclick="setDrawingColor('#00ff00')"></div>
+                    <div class="color-btn" style="background-color: #0000ff" onclick="setDrawingColor('#0000ff')"></div>
+                  </div>
+                  <div class="tool-buttons">
+                    <div class="tool-btn active" onclick="setDrawingTool('pen')">画笔</div>
+                    <div class="tool-btn" onclick="setDrawingTool('eraser')">橡皮</div>
+                    <button class="button" onclick="clearCanvas()">清空</button>
+                  </div>
+                </div>
+              </div>
+            `;
+            initCanvas();
+            break;
+          case "wait":
+            inputDiv.innerHTML +=
+              '<div class="countdown-display" id="countdownDisplay">⏰ 请等待 2:00</div>';
+
+            // 检查是否已经开始过倒计时
+            if (countdownStartTime) {
+              // 计算已经过去的时间
+              const elapsed = Math.floor(
+                (Date.now() - countdownStartTime) / 1000
+              );
+              const remaining = Math.max(0, 120 - elapsed);
+
+              if (remaining > 0) {
+                startCountdown(remaining); // 从剩余时间开始倒计时
+                document.getElementById("completeTaskBtn").disabled = true;
+              } else {
+                // 倒计时已结束
+                const display = document.getElementById("countdownDisplay");
+                display.textContent = "🎉 等待时间结束！";
+                display.classList.add("finished");
+                document.getElementById("completeTaskBtn").disabled = false;
+              }
+            } else {
+              // 首次开始倒计时
+              countdownStartTime = Date.now();
+              startCountdown(120);
+              document.getElementById("completeTaskBtn").disabled = true;
+            }
+            break;
+          default:
+            break;
+        }
+
+        // 显示完成任务按钮
+        document.getElementById("completeTaskBtn").style.display =
+          "inline-block";
+        document.getElementById("taskModal").classList.add("active");
+      }
+
+      // 根据任务类型获取对应的emoji
+      function getTaskEmoji(taskType) {
+        const emojiMap = {
+          simple: "✨",
+          text: "📝",
+          draw: "🎨",
+          offline: "🎯",
+          wait: "⏰",
+          penalty: "⚠️",
+        };
+        return emojiMap[taskType] || "❓";
+      }
+
+      // 获取地点名称
+      function getLocationName(position) {
+        const locations = {
+          0: "教会门口",
+          1: "教会大堂",
+          2: "主日学教室",
+          3: "儿童区",
+          4: "活动室",
+          5: "学校",
+          6: "学校门口",
+          7: "学校教室",
+          8: "游乐园",
+          9: "敬拜堂",
+          10: "娱乐场所",
+          11: "内心世界",
+          12: "教会厨房",
+          13: "礼拜堂",
+          14: "夏令营地",
+          15: "活动室",
+          16: "祷告室",
+          17: "游戏区",
+          18: "内心世界",
+          19: "讲台前",
+          20: "事工室",
+          21: "洗礼池",
+          22: "街头",
+          23: "考验之地",
+          24: "静默室",
+          25: "主日聚会",
+          26: "祝福台",
+          27: "训练场",
+          28: "咨询室",
+          29: "大厅",
+          30: "见证台",
+          31: "荣耀之门",
+        };
+        return locations[position];
+      }
+
+      // 更新玩家位置
+      async function updatePlayerPosition(playerId) {
+        const input = document.getElementById(`pos-${playerId}`);
+        const newPosition = parseInt(input.value);
+
+        if (isNaN(newPosition) || newPosition < 0 || newPosition > 31) {
+          alert("请输入有效的位置 (0-31)");
+          return;
+        }
+
+        try {
+          const player = players.find((p) => p.id === playerId);
+          if (!player) {
+            alert("找不到该玩家");
+            return;
+          }
+
+          const oldPosition = player.get("position");
+          player.set("position", newPosition);
+          await player.save();
+
+          // 刷新游戏状态
+          await loadGameState();
+
+          alert(
+            `已将 ${player.get(
+              "name"
+            )} 的位置从 ${oldPosition} 更新为 ${newPosition}`
+          );
+        } catch (error) {
+          console.error("更新位置失败:", error);
+          alert("更新失败，请重试");
+        }
+      }
+      function showStoryBackground() {
+        if (!currentTask) return;
+
+        const task = currentTask;
+        const location = getLocationName(currentTask.position);
+        const locationText = location ? `📍 当前位置：${location}` : "";
+
+        document.getElementById("taskDescription").innerHTML = `
+          <div style="text-align: center; padding: 20px;">
+            ${
+              locationText
+                ? `<p style="color: #667eea; font-weight: bold; margin-bottom: 15px; font-size: 16px;">${locationText}</p>`
+                : ""
+            }
+            <div style="font-size: 48px; margin: 20px 0;">${
+              task.title.split(" ")[0]
+            }</div>
+            <h3 style="color: #333; margin-bottom: 20px;">${task.title}</h3>
+            <p style="font-size: 16px; color: #666; line-height: 1.6; margin-bottom: 20px; background: #f8f9fa; padding: 15px; border-radius: 10px;">${
+              task.story || "在这里发生了一些事情..."
+            }</p>
+            <button class="button" style="font-size: 16px; padding: 15px 30px;" onclick="showFullTask()">
+              📋 返回查看任务
+            </button>
+          </div>
+        `;
+
+        // 清空输入区域和隐藏完成按钮
+        document.getElementById("taskInput").innerHTML = "";
+        document.getElementById("completeTaskBtn").style.display = "none";
+      }
+      // 题目数据
+      const gameQuestions = {
+        emoji: [
+          { emojis: "🚶‍♂️🐎👀🌺", answer: "走马观花" },
+          { emojis: "⭐⭐🐘🤩", answer: "惺惺相惜" },
+          { emojis: "🏆💧🚗💰", answer: "杯水车薪" },
+          { emojis: "🇺🇸🇨🇳🙅‍♂️🦶", answer: "美中不足" },
+          { emojis: "😭😊🙅‍♂️🇩🇪", answer: "哭笑不得" },
+          { emojis: "☀️3️⃣🌙4️⃣", answer: "朝三暮四" },
+          { emojis: "🐟👀🌀🐷", answer: "鱼目混珠" },
+          { emojis: "🦩🐔🐔🐔", answer: "鹤立鸡群" },
+          { emojis: "⭐🍰🌈🤯", answer: "兴高采烈" },
+          { emojis: "💕🏠🐔🏠", answer: "爱屋及乌" },
+          { emojis: "🥭🍬💊🌶️", answer: "酸甜苦辣" },
+          { emojis: "🍐🔒🦅🔔", answer: "理所应当" },
+          { emojis: "🐓🐶🚁👅", answer: "鸡犬升天" },
+          { emojis: "🐒📅🐎🌙", answer: "猴年马月" },
+          { emojis: "👔💉🏹❄️", answer: "一针见血" },
+          { emojis: "🐔✈️🐶💃", answer: "鸡飞狗跳" },
+          { emojis: "🔪🚣⚽🚀", answer: "刻舟求剑" },
+          { emojis: "🐟🎵🌀🍚", answer: "余音绕梁" },
+          { emojis: "🏠🌧️🐯😁", answer: "家喻户晓" },
+          { emojis: "🍏♣️🐷🐎", answer: "青梅竹马" },
+          { emojis: "🥬🐓🥕🥕", answer: "生机勃勃" },
+          { emojis: "🐓🎤🦌🦌", answer: "饥肠辘辘" },
+          { emojis: "😍😠🐑🐑", answer: "喜气洋洋" },
+          { emojis: "⬅️➡️🪁⭕", answer: "左右逢源" },
+          { emojis: "🚬💉🪑🛍️", answer: "严阵以待" },
+          { emojis: "😄🐓🥜😫", answer: "乐极生悲" },
+          { emojis: "👔🌹🎀🪵", answer: "移花接木" },
+          { emojis: "🟣🏳️🥕🕸️", answer: "自投罗网" },
+          { emojis: "🍅🙅‍♂️🉑🔔", answer: "势不可挡" },
+          { emojis: "#️⃣💧🧻🐸", answer: "井底之蛙" },
+          { emojis: "⏰🔭🔒🐢", answer: "众望所归" },
+          { emojis: "🐯🐯🐯🐯", answer: "虎头虎脑" },
+        ],
+        charades: [
+          { question: "祷告", hint: "双手合十，闭眼" },
+          { question: "洗礼", hint: "浸水动作，从水中起来" },
+          { question: "十字架", hint: "用手比划十字形状" },
+          { question: "天使", hint: "背后扇翅膀飞翔" },
+          { question: "牧羊人", hint: "拿牧杖，赶羊群" },
+          { question: "诺亚方舟", hint: "建船，引导动物上船" },
+          { question: "复活", hint: "先躺下装死，然后起来" },
+          { question: "奉献", hint: "拿钱放入箱子里" },
+          { question: "敬拜", hint: "举手赞美，抬头仰望" },
+          { question: "读经", hint: "翻书，指着字读" },
+          { question: "大象", hint: "用手臂做象鼻子" },
+          { question: "袋鼠", hint: "双手在胸前，跳跃" },
+          { question: "企鹅", hint: "摆动双臂走路" },
+          { question: "猴子", hint: "抓痒，爬树动作" },
+          { question: "蛇", hint: "在地上扭动爬行" },
+          { question: "兔子", hint: "蹦蹦跳跳，做长耳朵" },
+          { question: "狮子", hint: "做鬃毛，大声吼叫" },
+          { question: "鸟", hint: "扇翅膀飞翔" },
+          { question: "鱼", hint: "游泳动作，嘴巴一张一合" },
+          { question: "狗", hint: "四肢着地，摇尾巴" },
+          { question: "医生", hint: "听诊器，检查病人" },
+          { question: "老师", hint: "在黑板上写字" },
+          { question: "厨师", hint: "炒菜，尝味道" },
+          { question: "警察", hint: "吹哨子，指挥交通" },
+          { question: "理发师", hint: "剪头发动作" },
+          { question: "消防员", hint: "拿水管灭火" },
+          { question: "司机", hint: "开车，转方向盘" },
+          { question: "画家", hint: "拿笔在画布上画画" },
+          { question: "游泳", hint: "自由泳动作" },
+          { question: "篮球", hint: "运球，投篮" },
+          { question: "足球", hint: "踢球，头球" },
+          { question: "乒乓球", hint: "挥拍打球" },
+          { question: "跑步", hint: "原地跑步动作" },
+          { question: "跳绳", hint: "转绳子跳跃" },
+          { question: "举重", hint: "举哑铃动作" },
+          { question: "骑自行车", hint: "踩踏板，把握车把" },
+          { question: "吃面条", hint: "用筷子挑面条" },
+          { question: "喝咖啡", hint: "端杯子小口品尝" },
+          { question: "吃西瓜", hint: "切片，吐籽" },
+          { question: "烤肉", hint: "翻烤，闻香味" },
+          { question: "吃玉米", hint: "转着啃玉米棒" },
+          { question: "包饺子", hint: "擀皮，包馅" },
+          { question: "吃冰淇淋", hint: "舔冰淇淋球" },
+          { question: "喝奶茶", hint: "用吸管吸珍珠" },
+          { question: "看电影", hint: "吃爆米花，看大屏幕" },
+          { question: "弹钢琴", hint: "十指在键盘上弹奏" },
+          { question: "唱歌", hint: "拿麦克风，张嘴唱" },
+          { question: "跳舞", hint: "各种舞蹈动作" },
+          { question: "拍照", hint: "举相机，按快门" },
+          { question: "玩游戏", hint: "拿手柄，按按钮" },
+          { question: "开飞机", hint: "展开双臂，俯冲上升" },
+          { question: "坐火车", hint: "鸣笛，车轮转动" },
+          { question: "骑马", hint: "骑马奔跑动作" },
+          { question: "划船", hint: "用桨划水" },
+          { question: "坐地铁", hint: "抓扶手，站立摇晃" },
+          { question: "刷牙", hint: "拿牙刷上下刷牙" },
+          { question: "睡觉", hint: "打哈欠，躺下盖被子" },
+          { question: "哭", hint: "擦眼泪，伤心表情" },
+          { question: "笑", hint: "捧腹大笑" },
+          { question: "打电话", hint: "拿手机贴耳朵说话" },
+        ],
+
+        bible: [
+          {
+            question: "神用<blank>天创造了天地万物，第<blank>天安息了。",
+            answer: "六，七",
+          },
+          {
+            question: "亚伯拉罕原名叫<blank>，神与他立约时给他改名为亚伯拉罕。",
+            answer: "亚伯兰",
+          },
+          {
+            question:
+              '雅各与天使摔跤后，神给他改名为<blank>，意思是"与神摔跤"。',
+            answer: "以色列",
+          },
+          { question: "摩西在<blank>山上接受了十诫。", answer: "西奈" },
+          {
+            question: "大卫王击败巨人歌利亚时使用的武器是<blank>和<blank>。",
+            answer: "机弦，石子",
+          },
+          { question: "所罗门王建造圣殿花了<blank>年时间。", answer: "七" },
+          {
+            question: "先知<blank>被大鱼吞噬三天三夜后被吐在陆地上。",
+            answer: "约拿",
+          },
+          {
+            question:
+              "但以理的三个朋友<blank>、<blank>、<blank>被扔入烈火窑中却毫发无损。",
+            answer: "沙得拉，米煞，亚伯尼歌",
+          },
+          {
+            question: "耶稣诞生在<blank>城，这应验了先知<blank>的预言。",
+            answer: "伯利恒，弥迦",
+          },
+          {
+            question:
+              '耶稣受洗时，圣灵如<blank>降在他身上，天父的声音说"这是我的<blank>"。',
+            answer: "鸽子，爱子",
+          },
+          {
+            question: "耶稣拣选了<blank>个使徒，其中背叛他的是<blank>。",
+            answer: "十二，犹大",
+          },
+          {
+            question:
+              "耶稣用五个饼和<blank>条鱼喂饱了<blank>人（不包括妇女和孩子）。",
+            answer: "二，五千",
+          },
+          {
+            question: "耶稣在<blank>山上变像，与<blank>和<blank>说话。",
+            answer: "变像，摩西，以利亚",
+          },
+          { question: "耶稣被钉十字架前在<blank>园祷告。", answer: "客西马尼" },
+          {
+            question: "耶稣复活后第一个见到他的是<blank>。",
+            answer: "抹大拉的马利亚",
+          },
+          {
+            question: "使徒<blank>原名扫罗，在去<blank>的路上遇见复活的耶稣。",
+            answer: "保罗，大马士革",
+          },
+          {
+            question:
+              "五旬节圣灵降临时，使徒们说起<blank>来，有<blank>个国家的人听见。",
+            answer: "别国的话，十五",
+          },
+          { question: "新约中的书信有<blank>卷是保罗写的。", answer: "十三" },
+          {
+            question: "启示录是使徒<blank>在<blank>岛上得到的异象。",
+            answer: "约翰，拔摩",
+          },
+          {
+            question:
+              '"爱是恒久忍耐，又有恩慈"这句话出自<blank>前书第<blank>章。',
+            answer: "哥林多，十三",
+          },
+          {
+            question:
+              '"因为神爱世人，甚至将他的独生子赐给他们"出自约翰福音<blank>章<blank>节。',
+            answer: "三，十六",
+          },
+          {
+            question: "诗篇共有<blank>篇，其中第<blank>篇是最短的。",
+            answer: "一百五十，一百十七",
+          },
+          {
+            question: "箴言书的主要作者是<blank>王，强调<blank>的重要性。",
+            answer: "所罗门，智慧",
+          },
+          {
+            question:
+              "以西结书中提到的四个活物有<blank>脸面，分别是人、<blank>、<blank>、<blank>。",
+            answer: "四，狮子，牛，鹰",
+          },
+          {
+            question:
+              '耶稣说"我就是<blank>、<blank>、<blank>，若不藉着我，没有人能到父那里去。"',
+            answer: "道路，真理，生命",
+          },
+          {
+            question: "挪亚方舟在<blank>山上停住，挪亚放出<blank>探查水势。",
+            answer: "亚拉腊，鸽子",
+          },
+          {
+            question: "亚伯拉罕的妻子<blank>九十岁时生了儿子<blank>。",
+            answer: "撒拉，以撒",
+          },
+          {
+            question: "约瑟被哥哥们卖到<blank>，后来成为法老的<blank>。",
+            answer: "埃及，宰相",
+          },
+          {
+            question: "以色列人在旷野漂流<blank>年，神赐给他们<blank>作食物。",
+            answer: "四十，吗哪",
+          },
+          {
+            question:
+              "参孙的力量来源于他的<blank>，他被<blank>人的妇人大利拉出卖。",
+            answer: "头发，非利士",
+          },
+          {
+            question:
+              '路得对婆婆拿俄米说："你的<blank>就是我的<blank>，你的<blank>就是我的<blank>。"',
+            answer: "国民，国民，神，神",
+          },
+          {
+            question:
+              "先知撒母耳从小在<blank>的圣所中服事，听见神呼唤他<blank>次。",
+            answer: "以利，三",
+          },
+          {
+            question:
+              "大卫犯罪后，先知<blank>责备他，大卫写了诗篇第<blank>篇悔改。",
+            answer: "拿单，五十一",
+          },
+          {
+            question:
+              "以利亚在<blank>山上与四百五十个巴力先知斗法，证明<blank>是真神。",
+            answer: "迦密，耶和华",
+          },
+          {
+            question:
+              "但以理解释尼布甲尼撒王的梦，大像的头是<blank>，胸膛和膀臂是<blank>。",
+            answer: "金，银",
+          },
+          {
+            question:
+              "以斯帖王后冒死进见亚哈随鲁王，拯救了<blank>民族免于灭绝。",
+            answer: "犹太",
+          },
+          {
+            question:
+              "施洗约翰在<blank>河给人施洗，他说自己连给耶稣解<blank>都不配。",
+            answer: "约旦，鞋带",
+          },
+          {
+            question: "耶稣第一个神迹是在<blank>的婚礼上把<blank>变成<blank>。",
+            answer: "迦拿，水，酒",
+          },
+          {
+            question:
+              '好牧人的比喻中，耶稣说："我的羊听我的<blank>，我也认识他们，他们也<blank>我。"',
+            answer: "声音，跟从",
+          },
+        ],
+
+        spiritual: [
+          {
+            question: "基督教相信的核心是什么？",
+            options: [
+              "A. 做好事上天堂",
+              "B. 耶稣基督死而复活带来救恩",
+              "C. 遵守十诫",
+              "D. 参加教会活动",
+            ],
+            answer: "B",
+          },
+          {
+            question: "圣经分为哪两大部分？",
+            options: [
+              "A. 创世记和启示录",
+              "B. 律法书和先知书",
+              "C. 旧约和新约",
+              "D. 历史书和诗歌书",
+            ],
+            answer: "C",
+          },
+          {
+            question: "耶稣基督具有什么性质？",
+            options: [
+              "A. 只是人",
+              "B. 只是神",
+              "C. 既是神又是人",
+              "D. 半神半人",
+            ],
+            answer: "C",
+          },
+          {
+            question: '"三位一体"指的是什么？',
+            options: [
+              "A. 天父、天使、圣灵",
+              "B. 天父、耶稣、圣灵",
+              "C. 耶稣、马利亚、约瑟",
+              "D. 过去、现在、未来的神",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督教的救恩观念是什么？",
+            options: [
+              "A. 靠好行为得救",
+              "B. 靠金钱奉献得救",
+              "C. 靠信心得救",
+              "D. 靠知识得救",
+            ],
+            answer: "C",
+          },
+          {
+            question: "圣经总共有多少卷书？",
+            options: ["A. 60卷", "B. 66卷", "C. 70卷", "D. 77卷"],
+            answer: "B",
+          },
+          {
+            question: "耶稣在地上传道了多长时间？",
+            options: ["A. 1年", "B. 2年", "C. 3年左右", "D. 7年"],
+            answer: "C",
+          },
+          {
+            question: "什么是洗礼？",
+            options: [
+              "A. 洗净身体的仪式",
+              "B. 象征与基督同死同复活的仪式",
+              "C. 加入教会的仪式",
+              "D. 以上都对",
+            ],
+            answer: "D",
+          },
+          {
+            question: "圣餐（主餐）是为了纪念什么？",
+            options: [
+              "A. 耶稣的诞生",
+              "B. 耶稣的受洗",
+              "C. 耶稣的死和复活",
+              "D. 耶稣的升天",
+            ],
+            answer: "C",
+          },
+          {
+            question: "基督教最重要的节日是什么？",
+            options: ["A. 圣诞节", "B. 复活节", "C. 五旬节", "D. 受难节"],
+            answer: "B",
+          },
+          {
+            question: "耶稣说自己是什么？",
+            options: [
+              "A. 道路、真理、生命",
+              "B. 智慧、能力、荣耀",
+              "C. 公义、圣洁、慈爱",
+              "D. 开始、过程、结束",
+            ],
+            answer: "A",
+          },
+          {
+            question: "基督徒相信死后会怎样？",
+            options: [
+              "A. 轮回转世",
+              "B. 灵魂消失",
+              "C. 去天堂或地狱",
+              "D. 变成天使",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是祷告？",
+            options: ["A. 与神对话", "B. 自言自语", "C. 许愿", "D. 冥想"],
+            answer: "A",
+          },
+          {
+            question: "十诫是在哪里颁布的？",
+            options: ["A. 西奈山", "B. 橄榄山", "C. 迦密山", "D. 摩利亚山"],
+            answer: "A",
+          },
+          {
+            question: "新约的四福音书是哪四卷？",
+            options: [
+              "A. 马太、马可、路加、使徒行传",
+              "B. 马太、马可、路加、约翰",
+              "C. 约翰、保罗、彼得、雅各",
+              "D. 创世记、出埃及记、利未记、民数记",
+            ],
+            answer: "B",
+          },
+          {
+            question: "保罗原来的名字是什么？",
+            options: ["A. 西门", "B. 扫罗", "C. 巴拿巴", "D. 亚波罗"],
+            answer: "B",
+          },
+          {
+            question: "基督教强调的最大诫命是什么？",
+            options: [
+              "A. 不可杀人",
+              "B. 爱神和爱人如己",
+              "C. 不可偷盗",
+              "D. 孝敬父母",
+            ],
+            answer: "B",
+          },
+          {
+            question: "耶稣的12个门徒中谁背叛了他？",
+            options: ["A. 彼得", "B. 约翰", "C. 犹大", "D. 多马"],
+            answer: "C",
+          },
+          {
+            question: "圣灵的果子包括什么？",
+            options: [
+              "A. 权力、财富、名声",
+              "B. 仁爱、喜乐、和平等",
+              "C. 知识、技能、才华",
+              "D. 健康、长寿、成功",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是福音？",
+            options: ["A. 好消息", "B. 律法条文", "C. 历史故事", "D. 道德教训"],
+            answer: "A",
+          },
+          {
+            question: "基督教相信神创造世界用了多长时间？",
+            options: ["A. 一瞬间", "B. 六天", "C. 一年", "D. 千万年"],
+            answer: "B",
+          },
+          {
+            question: "耶稣复活后多少天升天？",
+            options: ["A. 3天", "B. 7天", "C. 40天", "D. 50天"],
+            answer: "C",
+          },
+          {
+            question: "五旬节发生了什么？",
+            options: [
+              "A. 耶稣诞生",
+              "B. 耶稣复活",
+              "C. 圣灵降临",
+              "D. 耶稣升天",
+            ],
+            answer: "C",
+          },
+          {
+            question: "基督徒聚会的地方叫什么？",
+            options: ["A. 寺庙", "B. 教堂/教会", "C. 会所", "D. 学校"],
+            answer: "B",
+          },
+          {
+            question: "牧师的主要职责是什么？",
+            options: [
+              "A. 管理教会财务",
+              "B. 讲道和牧养信徒",
+              "C. 组织活动",
+              "D. 建筑维护",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是见证？",
+            options: [
+              "A. 法庭作证",
+              "B. 分享神在生命中的作为",
+              "C. 背诵圣经",
+              "D. 唱赞美诗",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督教的婚姻观是什么？",
+            options: [
+              "A. 一夫多妻",
+              "B. 一妻多夫",
+              "C. 一夫一妻",
+              "D. 不结婚最好",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是天国（神的国）？",
+            options: [
+              "A. 死后去的地方",
+              "B. 神掌权的领域",
+              "C. 教会建筑",
+              "D. 某个国家",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒应该如何对待敌人？",
+            options: [
+              "A. 以眼还眼",
+              "B. 爱仇敌，为他们祷告",
+              "C. 避而远之",
+              "D. 寻求报复",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是悔改？",
+            options: [
+              "A. 后悔做错事",
+              "B. 认罪并转向神",
+              "C. 哭泣",
+              "D. 做好事补偿",
+            ],
+            answer: "B",
+          },
+          {
+            question: "圣经中说信心如什么？",
+            options: ["A. 芥菜种", "B. 大山", "C. 江河", "D. 星星"],
+            answer: "A",
+          },
+          {
+            question: "基督徒的盼望是什么？",
+            options: [
+              "A. 发财致富",
+              "B. 身体健康",
+              "C. 耶稣再来和永生",
+              "D. 世界和平",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是恩典？",
+            options: [
+              "A. 人努力得来的奖赏",
+              "B. 神白白给予的恩惠",
+              "C. 自然现象",
+              "D. 好运气",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督教鼓励什么样的生活方式？",
+            options: [
+              "A. 苦修隐居",
+              "B. 享乐主义",
+              "C. 敬虔而积极的生活",
+              "D. 消极等待",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是宣教？",
+            options: [
+              "A. 传播福音",
+              "B. 慈善工作",
+              "C. 教育事业",
+              "D. 文化交流",
+            ],
+            answer: "A",
+          },
+          {
+            question: "基督徒如何看待工作？",
+            options: [
+              "A. 必要的负担",
+              "B. 服侍神的方式",
+              "C. 追求财富的手段",
+              "D. 浪费时间",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是属灵的恩赐？",
+            options: [
+              "A. 物质财富",
+              "B. 圣灵赐给信徒的特殊能力",
+              "C. 天生的才能",
+              "D. 学来的技能",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督教如何看待苦难？",
+            options: [
+              "A. 都是罪的惩罚",
+              "B. 神可以使用苦难造就人",
+              "C. 应该完全避免",
+              "D. 没有意义",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是团契？",
+            options: [
+              "A. 商业伙伴关系",
+              "B. 信徒之间的属灵交通",
+              "C. 社交聚会",
+              "D. 学习小组",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒的终极目标是什么？",
+            options: [
+              "A. 成功富有",
+              "B. 荣耀神，享受神",
+              "C. 帮助别人",
+              "D. 改变世界",
+            ],
+            answer: "B",
+          },
+          {
+            question: "亚当和夏娃住在哪里？",
+            options: ["A. 耶路撒冷", "B. 伊甸园", "C. 巴比伦", "D. 埃及"],
+            answer: "B",
+          },
+          {
+            question: "挪亚建造方舟是为了躲避什么？",
+            options: ["A. 地震", "B. 大洪水", "C. 战争", "D. 瘟疫"],
+            answer: "B",
+          },
+          {
+            question: "亚伯拉罕被称为什么？",
+            options: [
+              "A. 智慧之父",
+              "B. 信心之父",
+              "C. 勇士之父",
+              "D. 财富之父",
+            ],
+            answer: "B",
+          },
+          {
+            question: "摩西带领以色列人离开哪个国家？",
+            options: ["A. 巴比伦", "B. 埃及", "C. 亚述", "D. 波斯"],
+            answer: "B",
+          },
+          {
+            question: "大卫王最著名的敌人是谁？",
+            options: ["A. 扫罗", "B. 歌利亚巨人", "C. 押沙龙", "D. 非利士人"],
+            answer: "B",
+          },
+          {
+            question: "所罗门王以什么闻名？",
+            options: ["A. 勇敢", "B. 智慧", "C. 财富", "D. 以上都是"],
+            answer: "D",
+          },
+          {
+            question: "但以理因为什么被扔进狮子坑？",
+            options: ["A. 偷东西", "B. 坚持祷告", "C. 说谎", "D. 背叛国王"],
+            answer: "B",
+          },
+          {
+            question: "约拿被什么吞了？",
+            options: ["A. 鲸鱼", "B. 大鱼", "C. 鲨鱼", "D. 海怪"],
+            answer: "B",
+          },
+          {
+            question: "施洗约翰与耶稣是什么关系？",
+            options: ["A. 兄弟", "B. 表兄弟", "C. 朋友", "D. 师生"],
+            answer: "B",
+          },
+          {
+            question: "耶稣第一次传道时说什么？",
+            options: [
+              'A. "天国近了，你们应当悔改"',
+              'B. "爱你的邻舍"',
+              'C. "不要怕"',
+              'D. "跟从我"',
+            ],
+            answer: "A",
+          },
+          {
+            question: "耶稣用五饼二鱼喂饱了多少人？",
+            options: ["A. 3000人", "B. 4000人", "C. 5000人", "D. 10000人"],
+            answer: "C",
+          },
+          {
+            question: "耶稣在十字架上说了多少句话？",
+            options: ["A. 5句", "B. 7句", "C. 9句", "D. 10句"],
+            answer: "B",
+          },
+          {
+            question: "耶稣复活后第一个见到他的人是谁？",
+            options: ["A. 彼得", "B. 约翰", "C. 抹大拉的马利亚", "D. 雅各"],
+            answer: "C",
+          },
+          {
+            question: "五旬节时门徒们获得了什么能力？",
+            options: ["A. 医病", "B. 说方言", "C. 行神迹", "D. 以上都是"],
+            answer: "D",
+          },
+          {
+            question: "保罗写了多少卷新约书信？",
+            options: ["A. 10卷", "B. 12卷", "C. 13卷", "D. 15卷"],
+            answer: "C",
+          },
+          {
+            question: "启示录是谁写的？",
+            options: ["A. 保罗", "B. 彼得", "C. 约翰", "D. 雅各"],
+            answer: "C",
+          },
+          {
+            question: "基督徒应该多久祷告一次？",
+            options: [
+              "A. 每天一次",
+              "B. 每周一次",
+              "C. 随时随地",
+              "D. 只在教会",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是灵修？",
+            options: [
+              "A. 锻炼身体",
+              "B. 与神亲近的时间",
+              "C. 学习知识",
+              "D. 帮助别人",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒读经时应该？",
+            options: [
+              "A. 快速浏览",
+              "B. 仔细思考和祷告",
+              "C. 只读一遍",
+              "D. 背诵所有内容",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是敬拜？",
+            options: ["A. 唱歌", "B. 祷告", "C. 赞美和尊崇神", "D. 奉献"],
+            answer: "C",
+          },
+          {
+            question: "十一奉献是什么意思？",
+            options: [
+              "A. 奉献收入的十分之一",
+              "B. 奉献11元",
+              "C. 每月奉献一次",
+              "D. 奉献剩余的钱",
+            ],
+            answer: "A",
+          },
+          {
+            question: "基督徒应该如何对待父母？",
+            options: [
+              "A. 孝敬父母",
+              "B. 完全听从",
+              "C. 保持距离",
+              "D. 只在需要时联系",
+            ],
+            answer: "A",
+          },
+          {
+            question: "基督教如何看待金钱？",
+            options: [
+              "A. 金钱是万恶之源",
+              "B. 贪财是万恶之根",
+              "C. 越多越好",
+              "D. 不重要",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是门徒？",
+            options: [
+              "A. 教会领袖",
+              "B. 跟随耶稣的学生",
+              "C. 传道人",
+              "D. 神学生",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒应该如何待人？",
+            options: [
+              "A. 以恶报恶",
+              "B. 以德报怨",
+              "C. 漠不关心",
+              "D. 看情况而定",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是服侍？",
+            options: [
+              "A. 赚钱养家",
+              "B. 用恩赐帮助别人",
+              "C. 做家务",
+              "D. 工作",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督教的黄金律是什么？",
+            options: [
+              "A. 有钱能使鬼推磨",
+              "B. 己所不欲，勿施于人",
+              "C. 你们愿意人怎样待你们，你们也要怎样待人",
+              "D. 适者生存",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是谦卑？",
+            options: [
+              "A. 看轻自己",
+              "B. 正确认识自己在神面前的地位",
+              "C. 不敢说话",
+              "D. 总是道歉",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒如何处理怒气？",
+            options: [
+              "A. 发泄出来",
+              "B. 压抑在心里",
+              "C. 生气但不要犯罪",
+              "D. 报复",
+            ],
+            answer: "C",
+          },
+          {
+            question: "什么是饶恕？",
+            options: [
+              "A. 忘记伤害",
+              "B. 不再追究过错",
+              "C. 假装没事",
+              "D. 等待报复机会",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒应该如何选择朋友？",
+            options: [
+              "A. 只交基督徒朋友",
+              "B. 谨慎选择，寻求好的影响",
+              "C. 什么人都交",
+              "D. 不需要朋友",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是见证的生活？",
+            options: [
+              "A. 常常传道",
+              "B. 生活行为荣耀神",
+              "C. 背很多圣经",
+              "D. 参加很多聚会",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒如何看待工作压力？",
+            options: [
+              "A. 完全不在乎",
+              "B. 交托给神，努力做好",
+              "C. 逃避现实",
+              "D. 怨天尤人",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是属灵的成长？",
+            options: [
+              "A. 年龄增长",
+              "B. 知识增加",
+              "C. 生命更像耶稣",
+              "D. 地位提升",
+            ],
+            answer: "C",
+          },
+          {
+            question: "基督徒应该如何使用社交媒体？",
+            options: [
+              "A. 随便发表言论",
+              "B. 传播正面信息，荣耀神",
+              "C. 不应该使用",
+              "D. 只关注娱乐",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是属天的智慧？",
+            options: [
+              "A. 学术知识",
+              "B. 生活经验",
+              "C. 敬畏神的智慧",
+              "D. 赚钱技巧",
+            ],
+            answer: "C",
+          },
+          {
+            question: "基督徒如何面对失败？",
+            options: [
+              "A. 自暴自弃",
+              "B. 从神得力量重新开始",
+              "C. 怪罪别人",
+              "D. 不再尝试",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是属灵争战？",
+            options: [
+              "A. 与人打架",
+              "B. 抵挡撒但和罪恶",
+              "C. 辩论神学",
+              "D. 竞争教会增长",
+            ],
+            answer: "B",
+          },
+          {
+            question: "基督徒的盼望和世人的盼望有什么不同？",
+            options: [
+              "A. 没有区别",
+              "B. 基督徒的盼望建立在永恒和神的应许上",
+              "C. 基督徒不应该有盼望",
+              "D. 基督徒的盼望更现实",
+            ],
+            answer: "B",
+          },
+          {
+            question: "什么是基督徒的使命？",
+            options: [
+              "A. 发财致富",
+              "B. 使万民作主的门徒",
+              "C. 建造教堂",
+              "D. 做慈善工作",
+            ],
+            answer: "B",
+          },
+        ],
+      };
+
+      // 当前题目状态
+      let currentQuestionType = "";
+      let currentQuestionIndex = -1;
+      let questionPools = {
+        charades: [...gameQuestions.charades],
+        bible: [...gameQuestions.bible],
+        spiritual: [...gameQuestions.spiritual],
+        emoji: [...gameQuestions.emoji],
+      };
+
+      // 显示游戏题目选择弹窗
+      function showGameQuestionModal() {
+        document.getElementById("gameQuestionModal").classList.add("active");
+      }
+
+      // 关闭游戏题目选择弹窗
+      function closeGameQuestionModal() {
+        document.getElementById("gameQuestionModal").classList.remove("active");
+      }
+
+      // 选择游戏类型
+      function selectGameType(type) {
+        currentQuestionType = type;
+        closeGameQuestionModal();
+        getNextQuestion();
+      }
+
+      // 获取下一题
+      function getNextQuestion() {
+        const answerDiv = document.getElementById("bibleAnswer");
+        const toggleBtn = document.getElementById("toggleAnswerBtn");
+        const fillBtn = document.getElementById("fillBlanksBtn");
+
+        if (answerDiv) {
+          answerDiv.style.display = "none";
+          answerDiv.style.opacity = "1";
+          answerDiv.style.transform = "translateY(0)";
+        }
+        if (toggleBtn) {
+          toggleBtn.textContent = "📖 显示答案";
+          toggleBtn.style.background = "#4CAF50";
+        }
+        if (fillBtn) {
+          fillBtn.textContent = "💡 填入空格";
+          fillBtn.style.background = "#2196F3";
+          fillBtn.disabled = false;
+        }
+        const pool = questionPools[currentQuestionType];
+
+        if (pool.length === 0) {
+          alert("该类型的题目已全部用完！");
+          closeQuestionDisplay();
+          return;
+        }
+
+        // 随机选择一题
+        currentQuestionIndex = Math.floor(Math.random() * pool.length);
+        const question = pool[currentQuestionIndex];
+
+        displayQuestion(question);
+      }
+
+      // 显示题目
+      function displayQuestion(question) {
+        const modal = document.getElementById("questionDisplayModal");
+        const gameTypeElement = document.getElementById("questionGameType");
+        const contentElement = document.getElementById("questionContent");
+
+        // 设置游戏类型标题
+        const typeNames = {
+          charades: "🎭 你比划我猜",
+          bible: "📖 圣经问题",
+          spiritual: "🙏 属灵问题",
+          emoji: "🎯 看图识字",
+        };
+        gameTypeElement.textContent = typeNames[currentQuestionType];
+
+        // 显示统计信息
+        const pool = questionPools[currentQuestionType];
+        const totalQuestions = gameQuestions[currentQuestionType].length;
+        const remainingQuestions = pool.length;
+
+        let content = `
+          <div class="question-stats">
+            <h4>题目统计</h4>
+            <div class="question-pool-info">
+              剩余题目：${remainingQuestions} / ${totalQuestions}
+            </div>
+          </div>
+        `;
+
+        // 根据题目类型显示内容
+        if (currentQuestionType === "charades") {
+          content += `
+            <div class="question-display">
+              <div class="charades-question">${question.question}</div>
+              <div class="charades-hint">提示：${question.hint}</div>
+            </div>
+          `;
+        } else if (currentQuestionType === "bible") {
+          const questionText = question.question.replace(
+            /<blank>/g,
+            '<span class="bible-blank"></span>'
+          );
+          content += `
+    <div class="question-display">
+      <div class="bible-question">${questionText}</div>
+      <div class="bible-answer-section">
+        <button class="button" id="toggleAnswerBtn" onclick="toggleBibleAnswer()" 
+                style="background: #4CAF50; font-size: 14px; padding: 8px 16px; margin: 10px 5px;">
+          📖 显示答案
+        </button>
+        <button class="button" id="fillBlanksBtn" onclick="fillBlanks()" 
+                style="background: #2196F3; font-size: 14px; padding: 8px 16px; margin: 10px 5px;">
+          💡 填入空格
+        </button>
+        <div id="bibleAnswer" class="bible-answer" style="display: none; font-size: 14px; color: #666; margin-top: 10px;">
+          <strong>参考答案：</strong><span style="color: #4CAF50; font-weight: bold;">${question.answer}</span>
+        </div>
+      </div>
+    </div>
+  `;
+        } else if (currentQuestionType === "spiritual") {
+          // 选择题不显示答案
+          content += `
+    <div class="question-display">
+      <div class="spiritual-question"><strong>${
+        question.question
+      }</strong></div>
+      <div class="spiritual-options">
+        ${question.options
+          .map(
+            (option, index) =>
+              `<div class="spiritual-option" onclick="selectOption('${option.charAt(
+                0
+              )}', ${index})" data-option="${option.charAt(0)}">${option}</div>`
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
+        } else if (currentQuestionType === "emoji") {
+          content += `
+    <div class="question-display">
+      <div class="emoji-question" style="font-size: 64px; margin: 30px 0; text-align: center; line-height: 1.2;">
+        ${question.emojis}
+      </div>
+      <div class="emoji-hint" style="color: #666; font-size: 16px; margin-bottom: 20px; text-align: center;">
+        请根据这些emoji猜出对应的成语
+      </div>
+      <div id="emojiAnswer" class="emoji-answer" style="display: none; font-size: 18px; color: #4CAF50; margin: 20px 0; font-weight: bold; text-align: center;">
+        答案：${question.answer}
+      </div>
+    </div>
+  `;
+        }
+
+        contentElement.innerHTML = content;
+        // 根据题目类型显示不同的按钮
+        updateActionButtons();
+        modal.classList.add("active");
+      }
+
+      // 标记回答正确
+      function markCorrect() {
+        // 从题目池中移除这道题
+        questionPools[currentQuestionType].splice(currentQuestionIndex, 1);
+
+        // 更新显示
+        updateQuestionStats();
+        setTimeout(() => {
+          getNextQuestion();
+        }, 500);
+      }
+
+      // 标记回答错误
+      function markIncorrect() {
+        setTimeout(() => {
+          getNextQuestion();
+        }, 500);
+      }
+
+      // 更新题目统计
+      function updateQuestionStats() {
+        const pool = questionPools[currentQuestionType];
+        const totalQuestions = gameQuestions[currentQuestionType].length;
+        const remainingQuestions = pool.length;
+
+        const statsElement = document.querySelector(".question-pool-info");
+        if (statsElement) {
+          statsElement.textContent = `剩余题目：${remainingQuestions} / ${totalQuestions}`;
+        }
+      }
+
+      // 关闭题目显示
+      function closeQuestionDisplay() {
+        document
+          .getElementById("questionDisplayModal")
+          .classList.remove("active");
+        currentQuestionType = "";
+        currentQuestionIndex = -1;
+      }
+      // 选择选项（这是关键功能）
+      function selectOption(selectedAnswer, optionIndex) {
+        const pool = questionPools[currentQuestionType];
+        const question = pool[currentQuestionIndex];
+        const correctAnswer = question.answer;
+        const options = document.querySelectorAll(".spiritual-option");
+
+        // 禁用所有选项的点击
+        options.forEach((option) => {
+          option.style.pointerEvents = "none";
+        });
+
+        if (selectedAnswer === correctAnswer) {
+          // 回答正确 - 显示绿色
+          options[optionIndex].style.backgroundColor = "#4CAF50";
+          options[optionIndex].style.color = "white";
+          options[optionIndex].style.borderColor = "#4CAF50";
+
+          // 从题目池中移除
+          questionPools[currentQuestionType].splice(currentQuestionIndex, 1);
+          updateQuestionStats();
+        } else {
+          // 回答错误 - 选中的显示红色
+          options[optionIndex].style.backgroundColor = "#f44336";
+          options[optionIndex].style.color = "white";
+          options[optionIndex].style.borderColor = "#f44336";
+
+          // 正确答案显示绿色
+          options.forEach((option) => {
+            if (option.dataset.option === correctAnswer) {
+              option.style.backgroundColor = "#4CAF50";
+              option.style.color = "white";
+              option.style.borderColor = "#4CAF50";
+            }
+          });
+        }
+      }
+
+      // 更新按钮
+      function updateActionButtons() {
+        const buttonsContainer = document.getElementById("actionButtons");
+
+        if (currentQuestionType === "spiritual") {
+          // 选择题只显示"下一题"按钮
+          buttonsContainer.innerHTML = `
+            <div style="margin-top: 15px; text-align: center;">
+              <button class="button" onclick="getNextQuestion()">下一题</button>
+              <button class="button" onclick="closeQuestionDisplay()">关闭</button>
+            </div>
+          `;
+        } else if (currentQuestionType === "emoji") {
+          // emoji题目显示特殊按钮布局
+          buttonsContainer.innerHTML = `
+      <div style="margin-top: 20px; display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+        <button class="button" style="background: #4CAF50;" onclick="markCorrect()">✅ 回答正确</button>
+        <button class="button" style="background: #f44336;" onclick="markIncorrect()">❌ 回答错误</button>
+        <button class="button" style="background: #2196F3;" onclick="toggleEmojiAnswer()">👁️ 显示答案</button>
+      </div>
+      <div style="margin-top: 15px; text-align: center;">
+        <button class="button" onclick="getNextQuestion()">跳过</button>
+        <button class="button" onclick="closeQuestionDisplay()">关闭</button>
+      </div>
+    `;
+        } else {
+          // 其他题目显示"回答正确/错误"按钮
+          buttonsContainer.innerHTML = `
+            <div style="margin-top: 20px; display: flex; gap: 15px; justify-content: center;">
+              <button class="button" style="background: #4CAF50;" onclick="markCorrect()">✅ 回答正确</button>
+              <button class="button" style="background: #f44336;" onclick="markIncorrect()">❌ 回答错误</button>
+            </div>
+            <div style="margin-top: 15px; text-align: center;">
+              <button class="button" onclick="getNextQuestion()">跳过</button>
+              <button class="button" onclick="closeQuestionDisplay()">关闭</button>
+            </div>
+          `;
+        }
+      }
+      // 切换答案显示/隐藏
+      function toggleBibleAnswer() {
+        const answerDiv = document.getElementById("bibleAnswer");
+        const toggleBtn = document.getElementById("toggleAnswerBtn");
+
+        if (!answerDiv || !toggleBtn) return;
+
+        if (answerDiv.style.display === "none") {
+          // 显示答案
+          answerDiv.style.display = "block";
+          toggleBtn.textContent = "🙈 隐藏答案";
+          toggleBtn.style.background = "#f44336";
+
+          // 添加显示动画
+          answerDiv.style.opacity = "0";
+          answerDiv.style.transform = "translateY(-10px)";
+          answerDiv.style.transition = "all 0.3s ease";
+
+          setTimeout(() => {
+            answerDiv.style.opacity = "1";
+            answerDiv.style.transform = "translateY(0)";
+          }, 10);
+        } else {
+          // 隐藏答案
+          answerDiv.style.opacity = "0";
+          answerDiv.style.transform = "translateY(-10px)";
+
+          setTimeout(() => {
+            answerDiv.style.display = "none";
+            toggleBtn.textContent = "📖 显示答案";
+            toggleBtn.style.background = "#4CAF50";
+          }, 300);
+        }
+      }
+
+      // 直接在空格中填入答案
+      function fillBlanks() {
+        const questionText =
+          document.querySelector(".bible-question").innerHTML;
+        const pool = questionPools[currentQuestionType];
+        const question = pool[currentQuestionIndex];
+        const answers = question.answer.split("，"); // 支持多个答案用逗号分隔
+
+        let answerIndex = 0;
+        const updatedText = questionText.replace(
+          /<span class="bible-blank"><\/span>/g,
+          () => {
+            const answer = answers[answerIndex] || "";
+            answerIndex++;
+            return `<span class="bible-blank filled" style="background: #e8f5e8; color: #2e7d32; font-weight: bold; padding: 2px 8px; border-radius: 4px;">${answer}</span>`;
+          }
+        );
+
+        document.querySelector(".bible-question").innerHTML = updatedText;
+
+        // 更改按钮状态
+        const fillBtn = document.getElementById("fillBlanksBtn");
+        if (fillBtn) {
+          fillBtn.textContent = "✅ 已填入";
+          fillBtn.style.background = "#4CAF50";
+          fillBtn.disabled = true;
+        }
+      }
+      // 检查emoji答案
+      function checkEmojiAnswer() {
+        const input = document.getElementById("emojiAnswer");
+        const userAnswer = input.value.trim();
+
+        if (!userAnswer) {
+          alert("请输入答案！");
+          return;
+        }
+
+        const pool = questionPools[currentQuestionType];
+        const question = pool[currentQuestionIndex];
+        const correctAnswer = question.answer;
+
+        if (userAnswer === correctAnswer) {
+          input.style.background = "#e8f5e8";
+          input.style.borderColor = "#4CAF50";
+          input.value = `✅ ${correctAnswer}`;
+
+          // 从题目池中移除
+          questionPools[currentQuestionType].splice(currentQuestionIndex, 1);
+          updateQuestionStats();
+
+          setTimeout(() => {
+            getNextQuestion();
+          }, 1500);
+        } else {
+          input.style.background = "#ffebee";
+          input.style.borderColor = "#f44336";
+
+          // 显示正确答案
+          setTimeout(() => {
+            input.value = `正确答案：${correctAnswer}`;
+            input.style.background = "#e8f5e8";
+            input.style.borderColor = "#4CAF50";
+
+            setTimeout(() => {
+              getNextQuestion();
+            }, 2000);
+          }, 1000);
+        }
+      }
+      // 切换emoji答案显示
+      function toggleEmojiAnswer() {
+        const answerDiv = document.getElementById("emojiAnswer");
+        const button = event.target;
+
+        if (answerDiv.style.display === "none") {
+          answerDiv.style.display = "block";
+          button.textContent = "🙈 隐藏答案";
+          button.style.background = "#f44336";
+        } else {
+          answerDiv.style.display = "none";
+          button.textContent = "👁️ 显示答案";
+          button.style.background = "#2196F3";
+        }
+      }
+    </script>
+  </body>
+</html>
