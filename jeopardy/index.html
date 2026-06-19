@@ -421,7 +421,7 @@
 
     .rules-grid {
       display: grid;
-      grid-template-columns: repeat(5, minmax(150px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 12px;
       margin: 28px 0 32px;
     }
@@ -625,6 +625,53 @@
     .modal-refresh-stable .modal-backdrop,
     .modal-refresh-stable .modal {
       animation: none;
+    }
+
+    .spotlight {
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      padding: 24px;
+      animation: spotlightFade 2000ms ease both;
+    }
+
+    .spotlight-card {
+      min-width: min(620px, calc(100vw - 48px));
+      border: 1px solid rgba(228, 191, 143, 0.72);
+      border-radius: var(--radius);
+      background:
+        linear-gradient(180deg, rgba(255, 253, 250, 0.96), rgba(242, 237, 226, 0.94)),
+        var(--surface);
+      box-shadow: 0 18px 60px rgba(32, 27, 22, 0.24);
+      padding: 34px 44px;
+      text-align: center;
+      animation: spotlightCard 2000ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .spotlight-kicker {
+      color: var(--amber);
+      font-size: 13px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .spotlight-title {
+      font-size: clamp(34px, 5vw, 64px);
+      line-height: 1.08;
+      margin: 0;
+    }
+
+    .spotlight-lines {
+      margin-top: 16px;
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: clamp(20px, 2.5vw, 30px);
+      line-height: 1.35;
     }
 
     .modal.narrow-modal {
@@ -984,6 +1031,34 @@
       }
     }
 
+    @keyframes spotlightFade {
+      0% { opacity: 0; }
+      12% { opacity: 1; }
+      82% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    @keyframes spotlightCard {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.96);
+        filter: blur(3px);
+      }
+      18% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: blur(0);
+      }
+      78% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.98);
+      }
+    }
+
     @media (max-width: 900px) {
       .topbar-main {
         align-items: flex-start;
@@ -1062,6 +1137,7 @@
       { color: "黄色", hex: "#d9ad3f", prompt: "最近一个想感谢的人" },
       { color: "蓝色", hex: "#3d6f9f", prompt: "最近一个小压力" },
       { color: "绿色", hex: "#4d8a59", prompt: "如果这周可以休息一天，你想怎么过" },
+      { color: "橙色", hex: "#d98236", prompt: "最近一个让你觉得被照顾或被鼓励的瞬间" },
       { color: "棕色", hex: "#7a5138", prompt: "最近一个神可能在提醒你的地方" }
     ];
 
@@ -1072,8 +1148,8 @@
         example: "例子：本队谁最像聚会结束后会主动留下来收拾？大家同时指认，并说一个观察理由。"
       },
       teammate: {
-        title: "队友了解：A答B",
-        rule: "随机抽A和B，A回答关于B的问题，B提前写下来答案。分值越高要求越具体。",
+        title: "队友了解",
+        rule: "随机抽一位回答者和一位被了解者，回答者回答关于被了解者的问题，被了解者提前写下答案。分值越高要求越具体。",
         example: "例子：系统抽到小林回答小周：小周更喜欢先把事情计划清楚，还是边做边调整？"
       },
       order: {
@@ -1195,7 +1271,8 @@
       timer: null,
       justRevealed: null,
       scoreFlashTeam: null,
-        stableModalRender: false
+      stableModalRender: false,
+      spotlight: null
       };
 
     function defaultState() {
@@ -1345,6 +1422,7 @@
         ${renderHeader()}
         ${renderStage()}
         ${renderModal()}
+        ${renderSpotlight()}
       `;
       ui.stableModalRender = false;
     }
@@ -1352,6 +1430,35 @@
     function renderInsideModal() {
       ui.stableModalRender = true;
       render();
+    }
+
+    function renderSpotlight() {
+      if (!ui.spotlight) return "";
+      return `
+        <div class="spotlight" aria-live="polite">
+          <div class="spotlight-card">
+            <div class="spotlight-kicker mono">${escapeHtml(ui.spotlight.kicker)}</div>
+            <h2 class="spotlight-title serif">${escapeHtml(ui.spotlight.title)}</h2>
+            <div class="spotlight-lines">
+              ${ui.spotlight.lines.map((line) => `<div>${escapeHtml(line)}</div>`).join("")}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showSpotlight(kicker, title, lines = []) {
+      const key = uid();
+      ui.spotlight = { key, kicker, title, lines };
+      if (ui.modal) renderInsideModal();
+      else render();
+      setTimeout(() => {
+        if (ui.spotlight?.key === key) {
+          ui.spotlight = null;
+          if (ui.modal) renderInsideModal();
+          else render();
+        }
+      }, 2000);
     }
 
     function renderHeader() {
@@ -1940,11 +2047,11 @@
       let action = "";
 
       if (categoryId === "teammate") {
-        title = "先随机回答者和被了解的人";
+        title = "先随机回答者和被了解者";
         body = ready
           ? `${participantName(helper.pair[0])} 回答，${participantName(helper.pair[1])} 提前写下答案。`
           : `${ownerText} 需要先抽出两个人。`;
-        action = `<button type="button" class="soft-button" onclick="drawTeammatePair(${index})">随机 A / B</button>`;
+        action = `<button type="button" class="soft-button" onclick="drawTeammatePair(${index})">随机回答者 / 被了解者</button>`;
       } else if (categoryId === "taboo") {
         title = "先随机描述者";
         body = ready
@@ -2155,7 +2262,8 @@
         timer: null,
         justRevealed: null,
         scoreFlashTeam: null,
-        stableModalRender: false
+        stableModalRender: false,
+        spotlight: null
       };
       render();
     }
@@ -2305,8 +2413,11 @@
       cell.completed = true;
       state.currentTeam = otherTeam(state.currentTeam);
       state.currentPickerId = choosePicker(state.currentTeam);
+      const nextTeamName = teamName(state.currentTeam);
+      const nextPickerName = participantName(state.currentPickerId);
       saveState();
       closeModal();
+      showSpotlight("下一位选题人", nextPickerName, [nextTeamName]);
     }
 
     function helperOwner(index) {
@@ -2345,6 +2456,10 @@
       updateHelper(index, (helper) => {
         helper.pair = picked;
       });
+      showSpotlight("队友了解", "随机结果", [
+        `回答者：${participantName(picked[0])}`,
+        `被了解者：${participantName(picked[1])}`
+      ]);
     }
 
     function drawDescriber(index) {
@@ -2353,6 +2468,7 @@
       updateHelper(index, (helper) => {
         helper.describer = picked[0];
       });
+      showSpotlight("禁词描述", participantName(picked[0]), ["描述者"]);
     }
 
     function drawStarter(index) {
@@ -2361,6 +2477,7 @@
       updateHelper(index, (helper) => {
         helper.starter = picked[0];
       });
+      showSpotlight("限时说出", participantName(picked[0]), ["起始人"]);
     }
 
     function drawStoryRoles(index) {
@@ -2369,6 +2486,11 @@
       updateHelper(index, (helper) => {
         helper.roles = { five: picked[0], three: picked[1], two: picked[2] };
       });
+      showSpotlight("五三二圣经故事", "随机分工", [
+        `5字：${participantName(picked[0])}`,
+        `3字：${participantName(picked[1])}`,
+        `2字：${participantName(picked[2])}`
+      ]);
     }
 
     function toggleConceal(index) {
