@@ -19,6 +19,8 @@
 
 教会团契大富翁页面。主题是信仰成长、团契生活和互动任务，包含玩家注册、主持人控制台、玩家提交内容、题目/事件内容，以及一个 `大富翁.xlsx` 辅助文件。`leancloud-init-fixed.html` 是相关数据表初始化工具。
 
+公开版默认使用本地模式，数据只保存在当前浏览器的 `localStorage`。多人同步是主动关闭的，因为公开仓库不内置 LeanCloud 配置；如果临时需要云端同步，可以打开 `monopoly/?setupLeanCloud=1` 在当前浏览器里填写自己的 LeanCloud App ID、App Key 和 Server URL。
+
 ### `jeopardy/`
 
 认识团契弟兄姊妹的 Jeopardy/破冰活动页面。主题是通过 M&M 问题、随机座位、分组、翻卡题库和计分，帮助大家更自然地认识彼此。题库和页面内容已经拆在 `content/` 里，样式和逻辑分别放在 `assets/css/` 和 `assets/js/`。

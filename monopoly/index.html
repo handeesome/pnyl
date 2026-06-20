@@ -264,10 +264,334 @@
     </div>
 
     <script>
-      // LeanCloud 配置 - 请替换为你的配置
-      const APP_ID = "YOUR_LEANCLOUD_APP_ID";
-      const APP_KEY = "YOUR_LEANCLOUD_APP_KEY";
-      const SERVER_URL = "YOUR_LEANCLOUD_SERVER_URL";
+      // 公开仓库不内置 LeanCloud 配置；运行时保存在当前浏览器 localStorage。
+      const CONFIG_STORAGE_KEY = "faith-monopoly:leancloud-config";
+      const LOCAL_BACKEND_STORAGE_KEY = "faith-monopoly:local-backend:v1";
+      const leanCloudConfig = loadLeanCloudConfig();
+      const APP_ID = leanCloudConfig.appId;
+      const APP_KEY = leanCloudConfig.appKey;
+      const SERVER_URL = leanCloudConfig.serverURL;
+
+      function loadLeanCloudConfig() {
+        const query = new URLSearchParams(window.location.search);
+        const queryConfig = {
+          appId: query.get("appId") || "",
+          appKey: query.get("appKey") || "",
+          serverURL: query.get("serverUrl") || query.get("serverURL") || "",
+        };
+
+        const embeddedConfig = window.FAITH_MONOPOLY_CONFIG || {};
+        const storedConfig = getStoredLeanCloudConfig();
+
+        return {
+          appId:
+            embeddedConfig.appId || queryConfig.appId || storedConfig.appId || "",
+          appKey:
+            embeddedConfig.appKey || queryConfig.appKey || storedConfig.appKey || "",
+          serverURL:
+            embeddedConfig.serverURL ||
+            queryConfig.serverURL ||
+            storedConfig.serverURL ||
+            "",
+        };
+      }
+
+      function getStoredLeanCloudConfig() {
+        try {
+          return JSON.parse(localStorage.getItem(CONFIG_STORAGE_KEY) || "{}");
+        } catch (error) {
+          return {};
+        }
+      }
+
+      function hasLeanCloudConfig() {
+        return Boolean(APP_ID && APP_KEY && SERVER_URL);
+      }
+
+      function showLeanCloudConfigScreen() {
+        document.body.innerHTML = `
+          <div style="max-width: 520px; margin: 48px auto; padding: 28px; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #253047;">
+            <h1 style="font-size: 24px; margin-bottom: 12px;">需要配置 LeanCloud</h1>
+            <p style="line-height: 1.7; color: #596273;">公开版本不会内置任何后端 App ID 或 App Key。请填入你自己的 LeanCloud 应用配置，它只会保存在当前浏览器。</p>
+            <form id="leanCloudConfigForm" style="display: grid; gap: 14px; margin-top: 22px;">
+              <label style="display: grid; gap: 6px; font-weight: 600;">
+                App ID
+                <input id="runtimeAppId" autocomplete="off" required style="padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; font: inherit;">
+              </label>
+              <label style="display: grid; gap: 6px; font-weight: 600;">
+                App Key
+                <input id="runtimeAppKey" autocomplete="off" required style="padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; font: inherit;">
+              </label>
+              <label style="display: grid; gap: 6px; font-weight: 600;">
+                Server URL
+                <input id="runtimeServerUrl" type="url" autocomplete="off" required placeholder="https://..." style="padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 8px; font: inherit;">
+              </label>
+              <button type="submit" style="padding: 12px 16px; border: 0; border-radius: 8px; background: #3d6dd8; color: white; font-weight: 700; cursor: pointer;">保存并进入游戏</button>
+            </form>
+          </div>
+        `;
+
+        document
+          .getElementById("leanCloudConfigForm")
+          .addEventListener("submit", (event) => {
+            event.preventDefault();
+            const config = {
+              appId: document.getElementById("runtimeAppId").value.trim(),
+              appKey: document.getElementById("runtimeAppKey").value.trim(),
+              serverURL: document.getElementById("runtimeServerUrl").value.trim(),
+            };
+            localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+            window.location.reload();
+          });
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function safeImageSrc(value) {
+        const source = String(value || "").trim();
+        if (/^data:image\/(?:png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i.test(source)) {
+          return source;
+        }
+
+        try {
+          const url = new URL(source, window.location.href);
+          return url.protocol === "https:" ? url.href : "";
+        } catch (error) {
+          return "";
+        }
+      }
+
+      function safeColor(value, fallback = "#667eea") {
+        const color = String(value || "").trim();
+        return /^#[0-9a-f]{3,8}$/i.test(color) ? color : fallback;
+      }
+
+      function safePlayerName(player) {
+        return escapeHtml(player?.get("name") || "未命名玩家");
+      }
+
+      function safeAvatarStyle(player) {
+        const imageUrl = safeImageSrc(player?.get("avatar"));
+        if (imageUrl) {
+          return `background-image: url('${imageUrl.replace(/'/g, "%27")}')`;
+        }
+        return `background-color: ${safeColor(player?.get("avatarColor"))}`;
+      }
+
+      function safeAvatarText(player) {
+        return safeImageSrc(player?.get("avatar"))
+          ? ""
+          : escapeHtml(player?.get("avatarInitial") || "");
+      }
+
+      function setupLocalBackend() {
+        const db = loadLocalBackendDb();
+        let changed = false;
+
+        function persist() {
+          if (!changed) return;
+          localStorage.setItem(
+            LOCAL_BACKEND_STORAGE_KEY,
+            JSON.stringify(encodeLocalValue(db))
+          );
+          changed = false;
+        }
+
+        function ensureClass(className) {
+          if (!db[className]) {
+            db[className] = {};
+            changed = true;
+          }
+          if (!db._seq[className]) {
+            db._seq[className] = 0;
+            changed = true;
+          }
+        }
+
+        function cloneFields(fields) {
+          return decodeLocalValue(encodeLocalValue(fields || {}));
+        }
+
+        class LocalObject {
+          constructor(className, id = null, fields = {}) {
+            this.className = className;
+            this.id = id;
+            this.attributes = cloneFields(fields);
+          }
+
+          get(key) {
+            return this.attributes[key];
+          }
+
+          set(key, value) {
+            this.attributes[key] = value;
+          }
+
+          async save() {
+            ensureClass(this.className);
+            if (!this.id) {
+              db._seq[this.className] += 1;
+              this.id = `local-${this.className}-${db._seq[this.className]}`;
+            }
+            db[this.className][this.id] = cloneFields(this.attributes);
+            changed = true;
+            persist();
+            return this;
+          }
+
+          async destroy() {
+            ensureClass(this.className);
+            if (this.id && db[this.className][this.id]) {
+              delete db[this.className][this.id];
+              changed = true;
+              persist();
+            }
+          }
+        }
+
+        class LocalQuery {
+          constructor(Model) {
+            this.className = Model.className;
+            this.filters = [];
+          }
+
+          equalTo(field, expectedValue) {
+            this.filters.push({ field, expectedValue });
+            return this;
+          }
+
+          async find() {
+            ensureClass(this.className);
+            persist();
+            return Object.entries(db[this.className])
+              .map(([id, fields]) => new LocalObject(this.className, id, fields))
+              .filter((record) =>
+                this.filters.every(
+                  ({ field, expectedValue }) => record.get(field) === expectedValue
+                )
+              );
+          }
+
+          async first() {
+            const records = await this.find();
+            return records[0] || null;
+          }
+        }
+
+        window.AV = {
+          init() {},
+          Object: {
+            extend(className) {
+              ensureClass(className);
+              class TypedLocalObject extends LocalObject {
+                constructor() {
+                  super(className);
+                }
+              }
+              TypedLocalObject.className = className;
+              persist();
+              return TypedLocalObject;
+            },
+            async destroyAll(records) {
+              await Promise.all((records || []).map((record) => record.destroy()));
+            },
+          },
+          Query: LocalQuery,
+          File: class LocalFile {
+            constructor(name, data) {
+              this.name = name;
+              this.data = data || {};
+              this.savedUrl = "";
+            }
+
+            async save() {
+              const extension = this.name.split(".").pop().toLowerCase();
+              const mimeType = extension === "jpg" || extension === "jpeg"
+                ? "image/jpeg"
+                : extension === "webp"
+                ? "image/webp"
+                : "image/png";
+              this.savedUrl = `data:${mimeType};base64,${this.data.base64 || ""}`;
+              return this;
+            }
+
+            url() {
+              return this.savedUrl;
+            }
+          },
+        };
+
+        return window.AV;
+      }
+
+      function loadLocalBackendDb() {
+        try {
+          const parsed = JSON.parse(
+            localStorage.getItem(LOCAL_BACKEND_STORAGE_KEY) || "{}"
+          );
+          const decoded = decodeLocalValue(parsed);
+          return {
+            _seq: decoded._seq || {},
+            Player: decoded.Player || {},
+            GameState: decoded.GameState || {},
+            Submission: decoded.Submission || {},
+          };
+        } catch (error) {
+          return { _seq: {}, Player: {}, GameState: {}, Submission: {} };
+        }
+      }
+
+      function encodeLocalValue(value) {
+        if (value instanceof Date) {
+          return { __type: "Date", iso: value.toISOString() };
+        }
+        if (Array.isArray(value)) {
+          return value.map((item) => encodeLocalValue(item));
+        }
+        if (value && typeof value === "object") {
+          return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [key, encodeLocalValue(item)])
+          );
+        }
+        return value;
+      }
+
+      function decodeLocalValue(value) {
+        if (value && value.__type === "Date" && value.iso) {
+          return new Date(value.iso);
+        }
+        if (Array.isArray(value)) {
+          return value.map((item) => decodeLocalValue(item));
+        }
+        if (value && typeof value === "object") {
+          return Object.fromEntries(
+            Object.entries(value).map(([key, item]) => [key, decodeLocalValue(item)])
+          );
+        }
+        return value;
+      }
+
+      function showRuntimeModeNotice(mode) {
+        if (mode !== "local") return;
+
+        const container = document.querySelector(".container");
+        if (!container || document.getElementById("runtimeModeNotice")) return;
+
+        const notice = document.createElement("div");
+        notice.id = "runtimeModeNotice";
+        notice.style.cssText =
+          "margin:0 0 16px;padding:12px 14px;border-radius:10px;background:#fff8e1;color:#5d4037;border:1px solid #ffe0a3;font-size:14px;line-height:1.6;text-align:left;";
+        notice.textContent =
+          "公开版默认本地模式：数据只保存在当前浏览器。多人同步是我主动关掉的，因为公开仓库不内置 LeanCloud 配置，不是功能没写好。";
+        container.prepend(notice);
+      }
 
       // 全局变量
       let currentPlayer = null;
@@ -705,14 +1029,23 @@
 
       // 初始化应用
       function initializeApp() {
-        if (typeof AV === "undefined") {
-          setTimeout(initializeApp, 100);
+        if (new URLSearchParams(window.location.search).get("setupLeanCloud") === "1") {
+          showLeanCloudConfigScreen();
           return;
         }
 
-        if (APP_ID === "YOUR_APP_ID") {
-          document.body.innerHTML =
-            '<div style="text-align:center;padding:50px;color:orange;font-size:18px;">⚠️ 请先配置 LeanCloud 信息！<br><br>请修改代码中的 APP_ID, APP_KEY 和 SERVER_URL</div>';
+        if (!hasLeanCloudConfig()) {
+          setupLocalBackend();
+          Player = AV.Object.extend("Player");
+          GameState = AV.Object.extend("GameState");
+          Submission = AV.Object.extend("Submission");
+          showRuntimeModeNotice("local");
+          console.log("本地模式初始化成功");
+          return;
+        }
+
+        if (typeof AV === "undefined") {
+          setTimeout(initializeApp, 100);
           return;
         }
 
@@ -1273,11 +1606,12 @@
               const avatar = document.createElement("div");
               avatar.className = "player-avatar";
 
-              if (player.get("avatar")) {
-                avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+              const playerAvatar = safeImageSrc(player.get("avatar"));
+              if (playerAvatar) {
+                avatar.style.backgroundImage = `url(${playerAvatar})`;
               } else {
-                avatar.style.backgroundColor = player.get("avatarColor");
-                avatar.textContent = player.get("avatarInitial");
+                avatar.style.backgroundColor = safeColor(player.get("avatarColor"));
+                avatar.textContent = player.get("avatarInitial") || "";
               }
 
               container.appendChild(avatar);
@@ -1345,11 +1679,12 @@
                 const avatar = document.createElement("div");
                 avatar.className = "player-avatar";
 
-                if (player.get("avatar")) {
-                  avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+                const playerAvatar = safeImageSrc(player.get("avatar"));
+                if (playerAvatar) {
+                  avatar.style.backgroundImage = `url(${playerAvatar})`;
                 } else {
-                  avatar.style.backgroundColor = player.get("avatarColor");
-                  avatar.textContent = player.get("avatarInitial");
+                  avatar.style.backgroundColor = safeColor(player.get("avatarColor"));
+                  avatar.textContent = player.get("avatarInitial") || "";
                 }
 
                 container.appendChild(avatar);
@@ -1421,11 +1756,12 @@
               const avatar = document.createElement("div");
               avatar.className = "player-avatar";
 
-              if (player.get("avatar")) {
-                avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+              const playerAvatar = safeImageSrc(player.get("avatar"));
+              if (playerAvatar) {
+                avatar.style.backgroundImage = `url(${playerAvatar})`;
               } else {
-                avatar.style.backgroundColor = player.get("avatarColor");
-                avatar.textContent = player.get("avatarInitial");
+                avatar.style.backgroundColor = safeColor(player.get("avatarColor"));
+                avatar.textContent = player.get("avatarInitial") || "";
               }
 
               playersDiv.appendChild(avatar);
@@ -1516,11 +1852,12 @@
 
           const avatar = document.createElement("div");
           avatar.className = "avatar";
-          if (player.get("avatar")) {
-            avatar.style.backgroundImage = `url(${player.get("avatar")})`;
+          const playerAvatar = safeImageSrc(player.get("avatar"));
+          if (playerAvatar) {
+            avatar.style.backgroundImage = `url(${playerAvatar})`;
           } else {
-            avatar.style.backgroundColor = player.get("avatarColor");
-            avatar.textContent = player.get("avatarInitial");
+            avatar.style.backgroundColor = safeColor(player.get("avatarColor"));
+            avatar.textContent = player.get("avatarInitial") || "";
           }
 
           const info = document.createElement("div");
@@ -1536,16 +1873,16 @@
           }
 
           info.innerHTML = `
-            <div><strong>${player.get("name")}</strong> ${
+            <div><strong>${safePlayerName(player)}</strong> ${
             index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : ""
           }</div>
-            <div>性别: ${player.get("gender")}</div>
+            <div>性别: ${escapeHtml(player.get("gender"))}</div>
             <div class="position-edit-section">
               <label>位置: </label>
               <input type="number"
                      class="position-input"
-                     id="${inputId}"
-                     value="${inputValue}"
+                     id="${escapeHtml(inputId)}"
+                     value="${escapeHtml(inputValue)}"
                      min="0"
                      max="31"
                      style="width: 60px; padding: 2px 5px; margin: 0 5px;">
@@ -1890,20 +2227,14 @@
           const friendDiv = document.createElement("div");
           friendDiv.className = "selected-friend";
 
-          const friendAvatarStyle = selectedFriend.get("avatar")
-            ? `background-image: url(${selectedFriend.get("avatar")})`
-            : `background-color: ${selectedFriend.get("avatarColor")}`;
-
-          const friendAvatarContent = selectedFriend.get("avatar")
-            ? ""
-            : selectedFriend.get("avatarInitial");
-
           friendDiv.innerHTML = `
                                 <h4>🤝 你的任务伙伴</h4>
                                 <div class="friend-info">
-                                  <div class="friend-avatar" style="${friendAvatarStyle}">${friendAvatarContent}</div>
-                                  <div class="friend-name">${selectedFriend.get(
-                                    "name"
+                                  <div class="friend-avatar" style="${safeAvatarStyle(
+                                    selectedFriend
+                                  )}">${safeAvatarText(selectedFriend)}</div>
+                                  <div class="friend-name">${safePlayerName(
+                                    selectedFriend
                                   )}</div>
                                 </div>
                               `;
@@ -2111,22 +2442,12 @@
                                 <div class="players-waiting-list">
                                   <h5>👥 当前在此格子的玩家</h5>
                                   <div class="waiting-players">
-                                    <div class="waiting-player-avatar" style="${
-                                      currentPlayer.get("avatar")
-                                        ? `background-image: url(${currentPlayer.get(
-                                            "avatar"
-                                          )})`
-                                        : `background-color: ${currentPlayer.get(
-                                            "avatarColor"
-                                          )}`
-                                    }">
-                                      ${
-                                        currentPlayer.get("avatar")
-                                          ? ""
-                                          : currentPlayer.get("avatarInitial")
-                                      }
-                                      <div class="waiting-player-name">${currentPlayer.get(
-                                        "name"
+                                    <div class="waiting-player-avatar" style="${safeAvatarStyle(
+                                      currentPlayer
+                                    )}">
+                                      ${safeAvatarText(currentPlayer)}
+                                      <div class="waiting-player-name">${safePlayerName(
+                                        currentPlayer
                                       )} (你)</div>
                                     </div>
                                   </div>
@@ -2196,18 +2517,13 @@
         // 显示协作伙伴
         let collaboratorHtml = "";
         collaborators.forEach((player) => {
-          const avatarStyle = player.get("avatar")
-            ? `background-image: url(${player.get("avatar")})`
-            : `background-color: ${player.get("avatarColor")}`;
-          const avatarContent = player.get("avatar")
-            ? ""
-            : player.get("avatarInitial");
-
           collaboratorHtml += `
-                                <div class="waiting-player-avatar" style="${avatarStyle}">
-                                  ${avatarContent}
-                                  <div class="waiting-player-name">${player.get(
-                                    "name"
+                                <div class="waiting-player-avatar" style="${safeAvatarStyle(
+                                  player
+                                )}">
+                                  ${safeAvatarText(player)}
+                                  <div class="waiting-player-name">${safePlayerName(
+                                    player
                                   )}</div>
                                 </div>
                               `;
@@ -2224,22 +2540,12 @@
                                 <div class="players-waiting-list">
                                   <h5>👥 参与任务的玩家</h5>
                                   <div class="waiting-players">
-                                    <div class="waiting-player-avatar" style="${
-                                      currentPlayer.get("avatar")
-                                        ? `background-image: url(${currentPlayer.get(
-                                            "avatar"
-                                          )})`
-                                        : `background-color: ${currentPlayer.get(
-                                            "avatarColor"
-                                          )}`
-                                    }">
-                                      ${
-                                        currentPlayer.get("avatar")
-                                          ? ""
-                                          : currentPlayer.get("avatarInitial")
-                                      }
-                                      <div class="waiting-player-name">${currentPlayer.get(
-                                        "name"
+                                    <div class="waiting-player-avatar" style="${safeAvatarStyle(
+                                      currentPlayer
+                                    )}">
+                                      ${safeAvatarText(currentPlayer)}
+                                      <div class="waiting-player-name">${safePlayerName(
+                                        currentPlayer
                                       )} (你)</div>
                                     </div>
                                     ${collaboratorHtml}
@@ -2812,8 +3118,8 @@
             const button = document.createElement("button");
             button.className = "submission-nav-btn";
             button.textContent = `格子${pos}: ${tasks[pos]?.title || "未知"}`;
-            button.onclick = () =>
-              showSubmissionDetails(pos, groupedSubmissions[pos]);
+            button.onclick = (event) =>
+              showSubmissionDetails(pos, groupedSubmissions[pos], event.currentTarget);
             buttonsContainer.appendChild(button);
           }
 
@@ -2823,17 +3129,19 @@
         }
       }
 
-      function showSubmissionDetails(position, submissions) {
+      function showSubmissionDetails(position, submissions, activeButton) {
         // 移除所有按钮的active状态
         document
           .querySelectorAll(".submission-nav-btn")
           .forEach((btn) => btn.classList.remove("active"));
 
         // 添加当前按钮的active状态
-        event.target.classList.add("active");
+        activeButton?.classList.add("active");
 
         const detailsContainer = document.getElementById("submissionDetails");
-        let content = `<h3>格子${position}: ${tasks[position]?.title}</h3>`;
+        let content = `<h3>格子${escapeHtml(position)}: ${escapeHtml(
+          tasks[position]?.title || "未知"
+        )}</h3>`;
 
         // 根据不同格子显示不同内容
         if (position == "2") {
@@ -2842,10 +3150,10 @@
           submissions.forEach((sub) => {
             content += `
                                     <div class="scripture-item">
-                                        <div class="player-name">${sub.get(
-                                          "playerName"
+                                        <div class="player-name">${escapeHtml(
+                                          sub.get("playerName")
                                         )}</div>
-                                        <p>${sub.get("content")}</p>
+                                        <p>${escapeHtml(sub.get("content"))}</p>
                                     </div>
                                 `;
           });
@@ -2854,14 +3162,17 @@
           // Logo设计 - 显示图片
           content += '<div class="logo-submissions">';
           submissions.forEach((sub) => {
+            const imageSrc = safeImageSrc(sub.get("content"));
             content += `
                                     <div class="logo-item">
-                                        <div class="player-name">${sub.get(
-                                          "playerName"
+                                        <div class="player-name">${escapeHtml(
+                                          sub.get("playerName")
                                         )}</div>
-                                        <img src="${sub.get(
-                                          "content"
-                                        )}" class="logo-image" alt="Logo设计">
+                                        ${
+                                          imageSrc
+                                            ? `<img src="${imageSrc}" class="logo-image" alt="Logo设计">`
+                                            : "<p>图片格式不可显示</p>"
+                                        }
                                     </div>
                                 `;
           });
@@ -2875,9 +3186,11 @@
             try {
               const parsed = JSON.parse(sub.get("content"));
               believeReasons.push(
-                ...parsed.believeReasons.filter((r) => r.trim())
+                ...(parsed.believeReasons || []).filter((r) => String(r).trim())
               );
-              doubtReasons.push(...parsed.doubtReasons.filter((r) => r.trim()));
+              doubtReasons.push(
+                ...(parsed.doubtReasons || []).filter((r) => String(r).trim())
+              );
             } catch (e) {}
           });
 
@@ -2888,7 +3201,9 @@
                                         ${believeReasons
                                           .map(
                                             (reason) =>
-                                              `<div class="reason-item">${reason}</div>`
+                                              `<div class="reason-item">${escapeHtml(
+                                                reason
+                                              )}</div>`
                                           )
                                           .join("")}
                                     </div>
@@ -2897,7 +3212,9 @@
                                         ${doubtReasons
                                           .map(
                                             (reason) =>
-                                              `<div class="reason-item">${reason}</div>`
+                                              `<div class="reason-item">${escapeHtml(
+                                                reason
+                                              )}</div>`
                                           )
                                           .join("")}
                                     </div>
@@ -2911,19 +3228,21 @@
               const parsed = JSON.parse(sub.get("content"));
               content += `
                                         <div class="playlist-item">
-                                            <div class="player-name">${sub.get(
+                                            <div class="player-name">${escapeHtml(
+                                              sub.get(
                                               "playerName"
+                                              )
                                             )}</div>
-                                            <div class="playlist-theme">${
+                                            <div class="playlist-theme">${escapeHtml(
                                               parsed.theme
-                                            }</div>
-                                            <div class="playlist-description">${
+                                            )}</div>
+                                            <div class="playlist-description">${escapeHtml(
                                               parsed.description
-                                            }</div>
+                                            )}</div>
                                             <div class="playlist-songs">
-                                                <ol>${parsed.songs
+                                                <ol>${(parsed.songs || [])
                                                   .map(
-                                                    (song) => `<li>${song}</li>`
+                                                    (song) => `<li>${escapeHtml(song)}</li>`
                                                   )
                                                   .join("")}</ol>
                                             </div>
@@ -2937,18 +3256,18 @@
           content +=
             '<div class="bubble-submissions"><h4>💭 需要改变的地方</h4>';
           submissions.forEach((sub) => {
-            content += `<div class="thought-bubble">${sub.get(
+            content += `<div class="thought-bubble">${escapeHtml(sub.get(
               "content"
-            )}</div>`;
+            ))}</div>`;
           });
           content += "</div>";
         } else if (position == "21") {
           // 感恩事情 - 匿名泡泡
           content += '<div class="bubble-submissions"><h4>🙏 感恩的事情</h4>';
           submissions.forEach((sub) => {
-            content += `<div class="gratitude-bubble">${sub.get(
+            content += `<div class="gratitude-bubble">${escapeHtml(sub.get(
               "content"
-            )}</div>`;
+            ))}</div>`;
           });
           content += "</div>";
         } else if (position == "25") {
@@ -2960,14 +3279,14 @@
               const things = parsed.things || [];
               content += `
               <div class="sunday-item">
-                <div class="player-name">${sub.get("playerName")}</div>
+                <div class="player-name">${escapeHtml(sub.get("playerName"))}</div>
                 <div class="sunday-things">
                   ${things
                     .map(
                       (thing, index) =>
                         `<div class="sunday-thing">
                       <span class="thing-number">${index + 1}.</span>
-                      <span class="thing-text">${thing}</span>
+                      <span class="thing-text">${escapeHtml(thing)}</span>
                     </div>`
                     )
                     .join("")}
@@ -2978,8 +3297,8 @@
               // 如果解析失败，显示原始内容
               content += `
               <div class="sunday-item">
-                <div class="player-name">${sub.get("playerName")}</div>
-                <p>${sub.get("content")}</p>
+                <div class="player-name">${escapeHtml(sub.get("playerName"))}</div>
+                <p>${escapeHtml(sub.get("content"))}</p>
               </div>
             `;
             }
@@ -2994,12 +3313,12 @@
           submissions.forEach((sub) => {
             try {
               const parsed = JSON.parse(sub.get("content"));
-              pastWords.push(...(parsed.past || []).filter((w) => w.trim()));
+              pastWords.push(...(parsed.past || []).filter((w) => String(w).trim()));
               presentWords.push(
-                ...(parsed.present || []).filter((w) => w.trim())
+                ...(parsed.present || []).filter((w) => String(w).trim())
               );
               futureWords.push(
-                ...(parsed.future || []).filter((w) => w.trim())
+                ...(parsed.future || []).filter((w) => String(w).trim())
               );
             } catch (e) {}
           });
@@ -3011,7 +3330,9 @@
                       ${pastWords
                         .map(
                           (word) =>
-                            `<div class="journey-bubble past-bubble">${word}</div>`
+                            `<div class="journey-bubble past-bubble">${escapeHtml(
+                              word
+                            )}</div>`
                         )
                         .join("")}
                     </div>
@@ -3020,7 +3341,9 @@
                       ${presentWords
                         .map(
                           (word) =>
-                            `<div class="journey-bubble present-bubble">${word}</div>`
+                            `<div class="journey-bubble present-bubble">${escapeHtml(
+                              word
+                            )}</div>`
                         )
                         .join("")}
                     </div>
@@ -3029,7 +3352,9 @@
                       ${futureWords
                         .map(
                           (word) =>
-                            `<div class="journey-bubble future-bubble">${word}</div>`
+                            `<div class="journey-bubble future-bubble">${escapeHtml(
+                              word
+                            )}</div>`
                         )
                         .join("")}
                     </div>
@@ -3865,19 +4190,13 @@
           const friendDiv = document.createElement("div");
           friendDiv.className = "selected-friend";
 
-          const friendAvatarStyle = selectedFriend.get("avatar")
-            ? `background-image: url(${selectedFriend.get("avatar")})`
-            : `background-color: ${selectedFriend.get("avatarColor")}`;
-
-          const friendAvatarContent = selectedFriend.get("avatar")
-            ? ""
-            : selectedFriend.get("avatarInitial");
-
           friendDiv.innerHTML = `
             <h4>🤝 你的任务伙伴</h4>
             <div class="friend-info">
-              <div class="friend-avatar" style="${friendAvatarStyle}">${friendAvatarContent}</div>
-              <div class="friend-name">${selectedFriend.get("name")}</div>
+              <div class="friend-avatar" style="${safeAvatarStyle(
+                selectedFriend
+              )}">${safeAvatarText(selectedFriend)}</div>
+              <div class="friend-name">${safePlayerName(selectedFriend)}</div>
             </div>
           `;
           inputDiv.appendChild(friendDiv);
