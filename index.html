@@ -1,10 +1,160 @@
 <!doctype html>
-<html>
-  <head>
-    <title>Not Found</title>
-  </head>
-  <body>
-    <h1>404 – Page Not Found</h1>
-    <p>This page does not exist.</p>
-  </body>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PNYL Sharing Pages</title>
+  <link rel="stylesheet" href="jeopardy/assets/css/styles.css">
+  <style>
+    .entry-hero {
+      min-height: calc(100vh - 66px);
+    }
+
+    .entry-card {
+      display: grid;
+      gap: 14px;
+      padding: 22px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .entry-card:first-child {
+      border-top: 0;
+      padding-top: 0;
+    }
+
+    .entry-card h2 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.2;
+    }
+
+    .entry-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.75;
+    }
+
+    .entry-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .entry-tag {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface);
+      padding: 4px 9px;
+      font-size: 13px;
+    }
+
+    .entry-actions a,
+    .topbar-actions a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+    }
+
+
+    @media (max-width: 900px) {
+      .entry-card h2 {
+        font-size: 25px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="topbar-main">
+        <div class="brand">
+          <div class="brand-title serif">PNYL 分享小网页</div>
+          <div class="brand-subtitle mono">Personal Activity Pages</div>
+        </div>
+        <div class="topbar-actions">
+          <a class="soft-button" href="jeopardy/index.html">认识团契</a>
+          <a class="soft-button" href="monopoly/index.html">大富翁</a>
+          <a class="soft-button" href="5lovelanguages/index.html">愛之語</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="page hero entry-hero">
+      <section>
+        <div class="eyebrow mono">PNYL Sharing Pages</div>
+        <h1 class="serif">一些给分享和活动使用的小网页</h1>
+        <p class="hero-lede">
+          这里放的是我给 PNYL 个人分享、团契互动和现场活动做的小页面。每个页面都尽量保持简单直接，方便打开后马上使用。
+        </p>
+        <div class="hero-points">
+          <div class="point">
+            <strong class="serif">分享辅助</strong>
+            <span>把测验、题目和互动流程放在网页里，现场不用翻很多文件。</span>
+          </div>
+          <div class="point">
+            <strong class="serif">活动带领</strong>
+            <span>适合团契游戏、破冰、分组、计分和内容提交这类需要一起参与的环节。</span>
+          </div>
+          <div class="point">
+            <strong class="serif">方便替换</strong>
+            <span>部分页面把题库和文案拆出来，之后可以按不同主题继续改。</span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="side-panel" aria-label="页面入口">
+        <div class="entry-card">
+          <div>
+            <div class="eyebrow mono">Fellowship Night</div>
+            <h2 class="serif">认识团契的弟兄姊妹</h2>
+          </div>
+          <p>通过 M&M 问题、随机座位、Jeopardy 翻卡和计分，帮助大家更自然地认识彼此。</p>
+          <div class="entry-meta">
+            <span class="entry-tag">破冰</span>
+            <span class="entry-tag">Jeopardy</span>
+            <span class="entry-tag">分组计分</span>
+          </div>
+          <div class="entry-actions">
+            <a class="ink-button" href="jeopardy/index.html">打开页面</a>
+          </div>
+        </div>
+
+        <div class="entry-card">
+          <div>
+            <div class="eyebrow mono">Faith Journey</div>
+            <h2 class="serif">教会团契大富翁</h2>
+          </div>
+          <p>围绕信仰成长和团契生活设计的大富翁活动，包含玩家注册、主持人控制台和互动任务。</p>
+          <div class="entry-meta">
+            <span class="entry-tag">团契游戏</span>
+            <span class="entry-tag">任务提交</span>
+            <span class="entry-tag">主持人控制</span>
+          </div>
+          <div class="entry-actions">
+            <a class="ink-button" href="monopoly/index.html">打开页面</a>
+          </div>
+        </div>
+
+        <div class="entry-card">
+          <div>
+            <div class="eyebrow mono">Love Languages</div>
+            <h2 class="serif">愛之語線上測驗</h2>
+          </div>
+          <p>五种爱的语言测验，用问卷和图表帮助参与者了解自己表达和接收爱的方式。</p>
+          <div class="entry-meta">
+            <span class="entry-tag">测验</span>
+            <span class="entry-tag">关系主题</span>
+            <span class="entry-tag">结果图表</span>
+          </div>
+          <div class="entry-actions">
+            <a class="ink-button" href="5lovelanguages/index.html">打开页面</a>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+</body>
 </html>
+
