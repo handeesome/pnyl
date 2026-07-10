@@ -8,7 +8,7 @@
 - 愛之語線上測驗：https://pnyl.netlify.app/5lovelanguages/
 - 教会团契大富翁：https://pnyl.netlify.app/monopoly/
 - 认识团契的弟兄姊妹：https://pnyl.netlify.app/jeopardy/
-- 教会匿名互动墙：https://untold.ducenhan.com/answer
+- 教会那些事（匿名互动）：https://untold.ducenhan.com/answer
 
 ## 文件夹说明
 
