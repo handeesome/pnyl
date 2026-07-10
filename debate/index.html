@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="两边之间：一场不分胜负、认真理解信仰价值张力的团契讨论。">
+  <title>两边之间｜信仰价值张力讨论</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="../index.html" aria-label="返回 PNYL 首页">
+        <span class="brand-title serif">两边之间</span>
+        <span class="brand-subtitle mono">BETWEEN TWO GOODS</span>
+      </a>
+      <div class="progress-wrap" aria-label="活动进度">
+        <div id="progressLabel" class="progress-label mono">01 / 08 · 共同选题</div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+      </div>
+      <div class="top-actions">
+        <button id="fullscreenButton" class="ghost-button" type="button">全屏</button>
+        <button id="resetButton" class="ghost-button danger-text" type="button">重新开始</button>
+      </div>
+    </header>
+
+    <main id="app" class="page" tabindex="-1"></main>
+
+    <footer class="stage-footer" aria-label="活动导航">
+      <button id="backButton" class="soft-button" type="button">← 上一步</button>
+      <div id="stageHint" class="footer-hint"></div>
+      <button id="nextButton" class="ink-button" type="button">下一步 →</button>
+    </footer>
+  </div>
+
+  <div id="confirmDialog" class="dialog-backdrop" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="eyebrow mono">RESET THIS SESSION</div>
+      <h2 id="confirmTitle" class="serif">确定重新开始吗？</h2>
+      <p>名单、分组、选题和当前进度都会从这台电脑清除。</p>
+      <div class="dialog-actions">
+        <button id="cancelReset" class="soft-button" type="button">先不重置</button>
+        <button id="confirmReset" class="danger-button" type="button">确定清除</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
