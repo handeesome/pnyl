@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#fbf8f1" />
+    <meta name="robots" content="noindex" />
+    <title>匿名回答｜教会里那些大家都懂，但平常不太讲的事</title>
+    <link rel="stylesheet" href="/assets/css/styles.css" />
+  </head>
+  <body class="answer-page">
+    <main class="answer-shell" id="answerApp">
+      <header class="answer-intro">
+        <p class="eyebrow">ANONYMOUS FELLOWSHIP WALL</p>
+        <p class="step-note mono">5 QUESTIONS · ANONYMOUS</p>
+        <h1 class="serif">教会里那些大家都懂，<br />但平常不太讲的事</h1>
+        <p class="intro-copy">每题都可以留空。提交后不能修改。</p>
+      </header>
+
+      <form id="answerForm" novalidate>
+        <div id="questionList" class="question-list"></div>
+        <div class="form-footer">
+          <p class="privacy-note">
+            <span aria-hidden="true">◌</span>
+            不收集姓名、邮箱或手机号；答案将在 24 小时后删除。
+          </p>
+          <p id="formError" class="form-error" role="alert" hidden></p>
+          <button class="primary-button submit-button" id="submitButton" type="submit">
+            <span>收录我的答案</span><span aria-hidden="true">→</span>
+          </button>
+        </div>
+      </form>
+    </main>
+
+    <section class="success-shell" id="successState" aria-live="polite" hidden>
+      <div class="success-mark" aria-hidden="true">✓</div>
+      <p class="eyebrow">RESPONSE RECEIVED</p>
+      <h1 class="serif">答案已收录。</h1>
+      <p>先别偷看，等会一起揭晓。</p>
+      <div class="success-rule" aria-hidden="true"></div>
+      <p class="success-foot mono">YOU MAY CLOSE THIS PAGE</p>
+      <button class="secondary-button test-reset-button" id="clearTestSubmission" type="button" hidden>
+        清除这台设备的测试记录
+      </button>
+    </section>
+
+    <script type="module" src="/assets/js/answer.js"></script>
+  </body>
+</html>
