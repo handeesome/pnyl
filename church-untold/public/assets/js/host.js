@@ -25,7 +25,6 @@ let questionIndex = 0;
 let submissionCount = 0;
 let pollTimer = null;
 let resultCache = emptyResults();
-const revealed = new Set();
 
 function emptyResults() {
   return {
@@ -131,7 +130,6 @@ function keyboardHint(items) {
 
 function renderWaiting() {
   view = "waiting";
-  revealed.clear();
   stage.className = "host-stage waiting-stage";
   stage.replaceChildren();
 
@@ -199,18 +197,6 @@ function renderProgress() {
     progress.append(mark);
   });
   return progress;
-}
-
-function renderHiddenResult(question) {
-  const cover = element("section", "reveal-cover");
-  cover.append(
-    element("p", "mono reveal-label", "ANSWERS HIDDEN"),
-    element("p", "serif reveal-prompt", question.type === "text" ? "匿名回答已经到齐" : "票数已经统计好"),
-  );
-  const revealButton = button("揭晓答案", "primary-button reveal-button", revealCurrent);
-  revealButton.append(element("span", "mono button-key", "SPACE"));
-  cover.append(revealButton);
-  return cover;
 }
 
 function renderBarResults(question, data) {
@@ -298,28 +284,15 @@ function renderQuestion() {
   header.append(meta, element("h1", "serif", question.title), renderProgress());
 
   const resultArea = element("div", "host-result-area");
-  resultArea.append(revealed.has(question.id) ? renderRevealedResult(question) : renderHiddenResult(question));
+  resultArea.append(renderRevealedResult(question));
 
   const footer = element("footer", "stage-footer question-footer");
   const previous = navButton("← 上一题", "previous", questionIndex === 0, previousQuestion);
   const nextLabel = questionIndex === QUESTIONS.length - 1 ? "结束页 →" : "下一题 →";
   const next = navButton(nextLabel, "next", false, nextQuestion);
-  footer.append(previous, keyboardHint([["SPACE", "揭晓"], ["← →", "切换题目"]]), next);
+  footer.append(previous, keyboardHint([["← →", "切换题目"]]), next);
 
   stage.append(header, resultArea, footer);
-}
-
-async function revealCurrent() {
-  const question = QUESTIONS[questionIndex];
-  if (revealed.has(question.id)) return;
-  try {
-    await refreshResults();
-    revealed.add(question.id);
-    renderQuestion();
-  } catch (error) {
-    setConnection(false);
-    window.alert(error.message || "暂时读取不到答案，请再试一次。");
-  }
 }
 
 function previousQuestion() {
@@ -417,7 +390,6 @@ resetDialog.addEventListener("close", async () => {
     await resetEvent(passcode);
     resultCache = emptyResults();
     updateCount(0);
-    revealed.clear();
     renderWaiting();
   } catch (error) {
     resetError.textContent = error.message || "暂时无法清空，请稍后再试。";
@@ -442,9 +414,6 @@ document.addEventListener("keydown", (event) => {
   } else if (event.key === "ArrowLeft") {
     event.preventDefault();
     previousQuestion();
-  } else if (event.code === "Space" && view === "question") {
-    event.preventDefault();
-    revealCurrent();
   }
 });
 
