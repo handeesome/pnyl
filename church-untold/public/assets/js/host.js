@@ -1,5 +1,5 @@
 import { getResults, getStatus, resetEvent } from "./api.js";
-import { QUESTIONS, VIDEO_URL } from "./questions.js";
+import { AI_ANSWERS, QUESTIONS, VIDEO_URL } from "./questions.js";
 import { renderQrCode } from "./qr.js";
 
 const SESSION_KEY = "churchUntold:hostPasscode:v1";
@@ -25,6 +25,7 @@ let questionIndex = 0;
 let submissionCount = 0;
 let pollTimer = null;
 let resultCache = emptyResults();
+let aiAnswerQuestionId = null;
 
 function emptyResults() {
   return {
@@ -130,6 +131,7 @@ function keyboardHint(items) {
 
 function renderWaiting() {
   view = "waiting";
+  aiAnswerQuestionId = null;
   stage.className = "host-stage waiting-stage";
   stage.replaceChildren();
 
@@ -235,7 +237,7 @@ function renderBarResults(question, data) {
   return result;
 }
 
-function renderTextResults(answers) {
+function renderAnswerCards(answers, { ai = false } = {}) {
   const cleanAnswers = answers.filter((value) => typeof value === "string" && value.trim());
   if (!cleanAnswers.length) {
     const empty = element("section", "empty-results");
@@ -247,18 +249,40 @@ function renderTextResults(answers) {
   grid.classList.toggle("has-many", cleanAnswers.length > 6);
   cleanAnswers.slice(0, 12).forEach((answer, index) => {
     const card = element("article", "answer-card");
+    card.classList.toggle("is-ai", ai);
     if (Array.from(answer).length > 42) card.classList.add("is-dense");
     if (Array.from(answer).length > 54) card.classList.add("is-compact");
     card.style.setProperty("--delay", `${Math.min(index * 100, 700)}ms`);
-    card.append(element("span", "mono answer-index", String(index + 1).padStart(2, "0")), element("p", "serif", answer));
+    const indexLabel = ai ? `AI ${String(index + 1).padStart(2, "0")}` : String(index + 1).padStart(2, "0");
+    card.append(element("span", "mono answer-index", indexLabel), element("p", "serif", answer));
     grid.append(card);
   });
   return grid;
 }
 
+function renderTextResults(question, answers) {
+  const showingAi = aiAnswerQuestionId === question.id;
+  const examples = AI_ANSWERS[question.id] || [];
+  const shell = element("section", "text-result-view");
+  const toolbar = element("header", "text-result-toolbar");
+  toolbar.append(
+    element("p", "text-result-label", showingAi ? "AI 示例视角 · 不计入现场回答" : "大家的匿名回答"),
+  );
+
+  const toggle = button(showingAi ? "返回大家的回答" : "AI回答", "secondary-button ai-answer-toggle", () => {
+    aiAnswerQuestionId = showingAi ? null : question.id;
+    renderQuestion();
+  });
+  toggle.setAttribute("aria-pressed", String(showingAi));
+  toolbar.append(toggle);
+
+  shell.append(toolbar, renderAnswerCards(showingAi ? examples : answers, { ai: showingAi }));
+  return shell;
+}
+
 function renderRevealedResult(question) {
   const data = resultCache.questions[question.id];
-  return question.type === "text" ? renderTextResults(data || []) : renderBarResults(question, data || { counts: {}, other: [] });
+  return question.type === "text" ? renderTextResults(question, data || []) : renderBarResults(question, data || { counts: {}, other: [] });
 }
 
 function navButton(label, direction, disabled, handler) {
@@ -298,11 +322,13 @@ function renderQuestion() {
 function previousQuestion() {
   if (view === "final") {
     questionIndex = QUESTIONS.length - 1;
+    aiAnswerQuestionId = null;
     renderQuestion();
     return;
   }
   if (view !== "question" || questionIndex === 0) return;
   questionIndex -= 1;
+  aiAnswerQuestionId = null;
   renderQuestion();
 }
 
@@ -317,6 +343,7 @@ function nextQuestion() {
     return;
   }
   questionIndex += 1;
+  aiAnswerQuestionId = null;
   renderQuestion();
 }
 
