@@ -40,4 +40,4 @@ export const QUESTIONS = [
 ];
 
 export const MAX_TEXT_LENGTH = 60;
-export const VIDEO_URL = "https://www.youtube.com/watch?v=XtkqxW8IARI&t=398s";
+export const VIDEO_URL = "https://www.youtube.com/watch?v=XtkqxW8IARI&t=112s";

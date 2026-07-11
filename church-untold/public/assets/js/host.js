@@ -336,7 +336,7 @@ function renderFinal() {
   link.href = VIDEO_URL;
   link.target = "_blank";
   link.rel = "noopener noreferrer";
-  link.append(document.createTextNode("打开视频，从 06:38 开始"), element("span", "video-arrow", "↗"));
+  link.append(document.createTextNode("打开视频，从 01:52 开始"), element("span", "video-arrow", "↗"));
   content.append(link);
 
   const tally = element("aside", "final-tally");
