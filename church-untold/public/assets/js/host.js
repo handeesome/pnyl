@@ -1,10 +1,4 @@
-import { getResults, getStatus, resetEvent } from "./api.js";
 import { AI_ANSWERS, QUESTIONS, VIDEO_URL } from "./questions.js";
-import { renderQrCode } from "./qr.js";
-
-const SESSION_KEY = "churchUntold:hostPasscode:v1";
-const POLL_INTERVAL = 2500;
-const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
 
 const DEMO_RESULTS = Object.freeze({
   count: 7,
@@ -23,25 +17,14 @@ const DEMO_RESULTS = Object.freeze({
   },
 });
 
-const lockScreen = document.querySelector("#lockScreen");
 const hostApp = document.querySelector("#hostApp");
-const unlockForm = document.querySelector("#unlockForm");
-const unlockError = document.querySelector("#unlockError");
 const stage = document.querySelector("#stage");
 const barCount = document.querySelector("#barCount");
 const connectionLabel = document.querySelector("#connectionLabel");
 const statusDot = document.querySelector("#statusDot");
-const resetButton = document.querySelector("#resetButton");
-const lockButton = document.querySelector("#lockButton");
-const resetDialog = document.querySelector("#resetDialog");
-const resetError = document.querySelector("#resetError");
-const confirmReset = document.querySelector("#confirmReset");
-
-let passcode = sessionStorage.getItem(SESSION_KEY) || "";
 let view = "waiting";
 let questionIndex = 0;
 let submissionCount = 0;
-let pollTimer = null;
 let resultCache = emptyResults();
 let aiAnswerQuestionId = null;
 
@@ -108,45 +91,18 @@ function updateCount(count) {
   if (startButton) startButton.disabled = submissionCount === 0;
 }
 
-async function refreshStatus() {
-  if (DEMO_MODE) return;
-  try {
-    const data = await getStatus();
-    updateCount(data.count ?? data.submissionCount ?? 0);
-    setConnection(true);
-  } catch {
-    setConnection(false);
-  }
-}
-
 async function refreshResults() {
-  if (DEMO_MODE) {
-    resultCache = normalizeResults(DEMO_RESULTS);
-    updateCount(resultCache.count);
-    setConnection(true, "DEMO");
-    return resultCache;
-  }
-  const data = await getResults(passcode);
-  resultCache = normalizeResults(data);
+  resultCache = normalizeResults(DEMO_RESULTS);
   updateCount(resultCache.count);
-  setConnection(true);
+  setConnection(true, "DEMO");
   return resultCache;
 }
 
 function startPolling() {
-  clearInterval(pollTimer);
-  if (DEMO_MODE) {
-    setConnection(true, "DEMO");
-    return;
-  }
-  refreshStatus();
-  pollTimer = window.setInterval(refreshStatus, POLL_INTERVAL);
+  setConnection(true, "DEMO");
 }
 
-function stopPolling() {
-  clearInterval(pollTimer);
-  pollTimer = null;
-}
+function stopPolling() {}
 
 function keyboardHint(items) {
   const wrap = element("div", "keyboard-hints");
@@ -166,38 +122,28 @@ function renderWaiting() {
 
   const copy = element("section", "waiting-copy");
   copy.append(
-    element("p", "eyebrow", DEMO_MODE ? "STATIC DEMO" : "ANONYMOUS FELLOWSHIP WALL"),
+    element("p", "eyebrow", "STATIC DEMO"),
     element("h1", "serif", "教会里那些大家都懂，但平常不太讲的事"),
-    element("p", "waiting-lede", DEMO_MODE ? "活动已结束，这里保留 7 份示例回答供浏览。" : "匿名回答，轻轻吐槽，讲点实话。"),
+    element("p", "waiting-lede", "活动已结束，这里保留 7 份示例回答供浏览。"),
   );
 
   const actions = element("div", "waiting-actions");
   const start = button("开始揭晓", "primary-button host-primary", startReveal);
   start.id = "startReveal";
   start.disabled = submissionCount === 0;
-  actions.append(start, element("span", "waiting-help", DEMO_MODE ? "只读演示，不会收集新回答" : "等大家都提交后再开始"));
+  actions.append(start, element("span", "waiting-help", "只读演示，不会收集新回答"));
   copy.append(actions);
 
   const scan = element("aside", "scan-panel");
   const qrFrame = element("div", "qr-frame");
   qrFrame.id = "qrCode";
-  if (DEMO_MODE) {
-    qrFrame.classList.add("demo-mark");
-    qrFrame.append(element("span", "serif", "DEMO"));
-    scan.append(
-      element("p", "scan-kicker mono", "ARCHIVED ACTIVITY"),
-      qrFrame,
-      element("p", "scan-copy", "原活动已下线；当前内容来自内置示例。"),
-    );
-  } else {
-    const answerUrl = new URL("/answer", window.location.origin).href;
-    scan.append(
-      element("p", "scan-kicker mono", "SCAN TO ANSWER"),
-      qrFrame,
-      element("p", "scan-copy", "扫码答完五题，等会一起揭晓。"),
-    );
-    renderQrCode(qrFrame, answerUrl);
-  }
+  qrFrame.classList.add("demo-mark");
+  qrFrame.append(element("span", "serif", "DEMO"));
+  scan.append(
+    element("p", "scan-kicker mono", "ARCHIVED ACTIVITY"),
+    qrFrame,
+    element("p", "scan-copy", "原活动已下线；当前内容来自内置示例。"),
+  );
   const counter = element("div", "response-counter");
   const number = element("strong", "serif", String(submissionCount));
   number.id = "waitingCount";
@@ -419,61 +365,8 @@ function renderFinal() {
   stage.append(content, tally, footer);
 }
 
-async function unlock(candidate) {
-  passcode = candidate;
-  try {
-    await refreshResults();
-    sessionStorage.setItem(SESSION_KEY, passcode);
-    lockScreen.hidden = true;
-    hostApp.hidden = false;
-    renderWaiting();
-  } catch (error) {
-    passcode = "";
-    sessionStorage.removeItem(SESSION_KEY);
-    unlockError.textContent = error.status === 401 ? "口令不正确，请再试一次。" : (error.message || "暂时无法连接，请稍后再试。");
-    unlockError.hidden = false;
-    unlockForm.querySelector("button").disabled = false;
-  }
-}
-
-unlockForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  unlockError.hidden = true;
-  const submit = unlockForm.querySelector("button");
-  submit.disabled = true;
-  unlock(unlockForm.elements.passcode.value);
-});
-
-resetButton.addEventListener("click", () => {
-  resetError.hidden = true;
-  resetDialog.showModal();
-});
-
-resetDialog.addEventListener("close", async () => {
-  if (resetDialog.returnValue !== "confirm") return;
-  confirmReset.disabled = true;
-  try {
-    await resetEvent(passcode);
-    resultCache = emptyResults();
-    updateCount(0);
-    renderWaiting();
-  } catch (error) {
-    resetError.textContent = error.message || "暂时无法清空，请稍后再试。";
-    resetError.hidden = false;
-    resetDialog.showModal();
-  } finally {
-    confirmReset.disabled = false;
-  }
-});
-
-lockButton.addEventListener("click", () => {
-  stopPolling();
-  sessionStorage.removeItem(SESSION_KEY);
-  window.location.reload();
-});
-
 document.addEventListener("keydown", (event) => {
-  if (event.target.matches("input, textarea, button, a") || resetDialog.open || hostApp.hidden) return;
+  if (event.target.matches("input, textarea, button, a") || hostApp.hidden) return;
   if (event.key === "ArrowRight") {
     event.preventDefault();
     nextQuestion();
@@ -483,18 +376,6 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
-window.addEventListener("beforeunload", stopPolling);
-
-if (DEMO_MODE) {
-  resultCache = normalizeResults(DEMO_RESULTS);
-  updateCount(resultCache.count);
-  lockScreen.hidden = true;
-  hostApp.hidden = false;
-  resetButton.hidden = true;
-  lockButton.hidden = true;
-  renderWaiting();
-} else if (passcode) {
-  unlock(passcode);
-} else {
-  lockScreen.hidden = false;
-}
+resultCache = normalizeResults(DEMO_RESULTS);
+updateCount(resultCache.count);
+renderWaiting();

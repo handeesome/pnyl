@@ -22,7 +22,7 @@
 
 活动结束后，PNYL 首页保留了一个无需 API 的只读演示：
 
-- https://pnyl.netlify.app/church-untold/public/host/?demo=1
+- https://pnyl.netlify.app/church-untold/public/host/
 
 ## 技术栈
 
