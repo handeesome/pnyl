@@ -2,7 +2,7 @@
 
 一个为小型团契现场设计的一次性匿名互动墙。参与者用手机完成五道题，主持人通过投影页查看提交数量，并按题逐页揭晓匿名结果。
 
-正式地址：
+活动期间使用的地址（现已下线）：
 
 - 答题页：https://untold.ducenhan.com/answer/
 - 主持页：https://untold.ducenhan.com/host/
@@ -19,6 +19,10 @@
 - 最后一页可在新标签页打开指定 YouTube 视频。
 
 项目不收集姓名、邮箱、手机号等身份信息，也没有账号、排行榜或长期数据后台。
+
+活动结束后，PNYL 首页保留了一个无需 API 的只读演示：
+
+- https://pnyl.netlify.app/church-untold/public/host/?demo=1
 
 ## 技术栈
 

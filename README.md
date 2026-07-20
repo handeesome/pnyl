@@ -8,7 +8,7 @@
 - 愛之語線上測驗：https://pnyl.netlify.app/5lovelanguages/
 - 教会团契大富翁：https://pnyl.netlify.app/monopoly/
 - 认识团契的弟兄姊妹：https://pnyl.netlify.app/jeopardy/
-- 教会那些事（匿名互动）：https://untold.ducenhan.com/answer
+- 教会那些事（静态演示）：https://pnyl.netlify.app/church-untold/public/host/?demo=1
 
 ## 文件夹说明
 
@@ -28,9 +28,9 @@
 
 ### `church-untold/`
 
-“教会里那些大家都懂，但平常不太讲的事”匿名互动页面。源代码保留在本仓库，正式活动由 Cloudflare Workers Static Assets + D1 提供 `/answer` 手机答题、`/host` 投影揭晓和 24 小时匿名数据清理。主入口页链接到独立的 Cloudflare 活动网址。
+“教会里那些大家都懂，但平常不太讲的事”匿名互动页面。活动期间由 Cloudflare Workers Static Assets + D1 提供手机答题、投影揭晓和匿名数据清理；活动结束后，Cloudflare 服务已下线，完整源代码继续保留在本仓库。
 
-这是一次性活动。结束后可先从主入口隐藏活动链接，待答案过期后删除 Cloudflare Worker 与 D1；仓库中的源代码不会受影响。若仍要在 Netlify 上公开保留，应另做只读归档页，而不是保留无法连接 API 的答题表单。
+PNYL 主入口现在连接到不依赖 API 的只读静态演示。演示内置 7 份示例结果，可查看揭晓流程和 AI 回答，但不会收集或保存新答案。
 
 ## 其他文件
 

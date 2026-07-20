@@ -4,6 +4,24 @@ import { renderQrCode } from "./qr.js";
 
 const SESSION_KEY = "churchUntold:hostPasscode:v1";
 const POLL_INTERVAL = 2500;
+const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "1";
+
+const DEMO_RESULTS = Object.freeze({
+  count: 7,
+  questions: {
+    q1: {
+      counts: { "祷告": 2, "读经": 0, "分享": 2, "上台服事": 1, "其实都怕": 2, "都不怕": 0 },
+      other: [],
+    },
+    q2: {
+      counts: { "事情太多": 3, "意见太多": 4, "找不到人": 2, "加入后很难退出": 2, "沟通太绕": 3, "没服事过 / 不确定": 0 },
+      other: [],
+    },
+    q3: [...AI_ANSWERS.q3],
+    q4: [...AI_ANSWERS.q4],
+    q5: [...AI_ANSWERS.q5],
+  },
+});
 
 const lockScreen = document.querySelector("#lockScreen");
 const hostApp = document.querySelector("#hostApp");
@@ -91,6 +109,7 @@ function updateCount(count) {
 }
 
 async function refreshStatus() {
+  if (DEMO_MODE) return;
   try {
     const data = await getStatus();
     updateCount(data.count ?? data.submissionCount ?? 0);
@@ -101,6 +120,12 @@ async function refreshStatus() {
 }
 
 async function refreshResults() {
+  if (DEMO_MODE) {
+    resultCache = normalizeResults(DEMO_RESULTS);
+    updateCount(resultCache.count);
+    setConnection(true, "DEMO");
+    return resultCache;
+  }
   const data = await getResults(passcode);
   resultCache = normalizeResults(data);
   updateCount(resultCache.count);
@@ -110,6 +135,10 @@ async function refreshResults() {
 
 function startPolling() {
   clearInterval(pollTimer);
+  if (DEMO_MODE) {
+    setConnection(true, "DEMO");
+    return;
+  }
   refreshStatus();
   pollTimer = window.setInterval(refreshStatus, POLL_INTERVAL);
 }
@@ -137,27 +166,38 @@ function renderWaiting() {
 
   const copy = element("section", "waiting-copy");
   copy.append(
-    element("p", "eyebrow", "ANONYMOUS FELLOWSHIP WALL"),
+    element("p", "eyebrow", DEMO_MODE ? "STATIC DEMO" : "ANONYMOUS FELLOWSHIP WALL"),
     element("h1", "serif", "教会里那些大家都懂，但平常不太讲的事"),
-    element("p", "waiting-lede", "匿名回答，轻轻吐槽，讲点实话。"),
+    element("p", "waiting-lede", DEMO_MODE ? "活动已结束，这里保留 7 份示例回答供浏览。" : "匿名回答，轻轻吐槽，讲点实话。"),
   );
 
   const actions = element("div", "waiting-actions");
   const start = button("开始揭晓", "primary-button host-primary", startReveal);
   start.id = "startReveal";
   start.disabled = submissionCount === 0;
-  actions.append(start, element("span", "waiting-help", "等大家都提交后再开始"));
+  actions.append(start, element("span", "waiting-help", DEMO_MODE ? "只读演示，不会收集新回答" : "等大家都提交后再开始"));
   copy.append(actions);
 
   const scan = element("aside", "scan-panel");
   const qrFrame = element("div", "qr-frame");
   qrFrame.id = "qrCode";
-  const answerUrl = new URL("/answer", window.location.origin).href;
-  scan.append(
-    element("p", "scan-kicker mono", "SCAN TO ANSWER"),
-    qrFrame,
-    element("p", "scan-copy", "扫码答完五题，等会一起揭晓。"),
-  );
+  if (DEMO_MODE) {
+    qrFrame.classList.add("demo-mark");
+    qrFrame.append(element("span", "serif", "DEMO"));
+    scan.append(
+      element("p", "scan-kicker mono", "ARCHIVED ACTIVITY"),
+      qrFrame,
+      element("p", "scan-copy", "原活动已下线；当前内容来自内置示例。"),
+    );
+  } else {
+    const answerUrl = new URL("/answer", window.location.origin).href;
+    scan.append(
+      element("p", "scan-kicker mono", "SCAN TO ANSWER"),
+      qrFrame,
+      element("p", "scan-copy", "扫码答完五题，等会一起揭晓。"),
+    );
+    renderQrCode(qrFrame, answerUrl);
+  }
   const counter = element("div", "response-counter");
   const number = element("strong", "serif", String(submissionCount));
   number.id = "waitingCount";
@@ -171,7 +211,6 @@ function renderWaiting() {
   );
 
   stage.append(copy, scan, footer);
-  renderQrCode(qrFrame, answerUrl);
   startPolling();
 }
 
@@ -446,7 +485,15 @@ document.addEventListener("keydown", (event) => {
 
 window.addEventListener("beforeunload", stopPolling);
 
-if (passcode) {
+if (DEMO_MODE) {
+  resultCache = normalizeResults(DEMO_RESULTS);
+  updateCount(resultCache.count);
+  lockScreen.hidden = true;
+  hostApp.hidden = false;
+  resetButton.hidden = true;
+  lockButton.hidden = true;
+  renderWaiting();
+} else if (passcode) {
   unlock(passcode);
 } else {
   lockScreen.hidden = false;
