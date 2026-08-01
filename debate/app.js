@@ -1,20 +1,25 @@
-import { TOPICS, ROLE_SETS } from "./topics.js";
+import { TOPICS, PARTICIPATION_TASKS } from "./topics.js";
 
-const STORAGE_KEY = "pnyl-between-sides-v1";
+const STORAGE_KEY = "pnyl-between-sides-v2";
 const STAGES = [
-  { label: "共同选题", hint: "大家口头商量后，由主持人选定今晚的问题。", time: "5 分钟" },
-  { label: "输入名单", hint: "至少 2 人即可开始；下一步会随机分成两组。", time: "3 分钟" },
-  { label: "分组和分工", hint: "你只是暂时帮这一边说话，不代表你本人赞同。", time: "3 分钟" },
-  { label: "分组准备", hint: "不用面面俱到。每个人完成自己的小任务就好。", time: "8–10 分钟" },
-  { label: "两组分享", hint: "可以轮流补充。把自己这边说清楚就好，不用驳倒对方。", time: "每组约 4 分钟" },
-  { label: "情境变化", hint: "每次只改变一件事：你们还坚持刚才的说法，还是需要承认一个例外？", time: "10–12 分钟" },
-  { label: "一起聊聊", hint: "分组到这里结束。现在可以说回自己的想法。", time: "10 分钟" },
-  { label: "最后梳理", hint: "这里没有标准答案，只是把刚才谈到的重点收在一起。", time: "5 分钟" }
+  { label: "共同选题", hint: "先选一个今晚真的想聊的问题。", time: "5 分钟" },
+  { label: "输入名单", hint: "至少 2 人；名单只用来随机发一张小任务。", time: "3 分钟" },
+  { label: "案例和任务", hint: "所有人讨论同一个虚构案例；任务可以随时换。", time: "3–5 分钟" },
+  { label: "第一轮讨论", hint: "只说自己真实的判断，不需要替任何一边说话。", time: "10–12 分钟" },
+  { label: "情况变化", hint: "每次只增加一个新事实，看看判断有没有改变。", time: "10–12 分钟" },
+  { label: "回到经文", hint: "经文不是用来压过别人，而是肯定和修正刚才的想法。", time: "10 分钟" },
+  { label: "最后整理", hint: "不用达成一致，只看见两种常见考虑。", time: "5 分钟" }
 ];
 
-const defaultState = () => ({ stage: 0, topicId: null, names: [], teams: null, sideOrder: [0, 1], shareSide: 0, scenarioIndex: 0, versesOpen: false, swapPick: null });
+const defaultState = () => ({
+  stage: 0,
+  topicId: null,
+  names: [],
+  taskAssignments: [],
+  changeIndex: 0
+});
+
 let state = loadState();
-if (state.stage === 0) state.topicId = null;
 
 const app = document.querySelector("#app");
 const progressLabel = document.querySelector("#progressLabel");
@@ -52,16 +57,28 @@ function shuffle(items) {
   return output;
 }
 
-function makeTeams() {
-  const names = shuffle(state.names);
-  const split = Math.ceil(names.length / 2);
-  state.teams = [names.slice(0, split), names.slice(split)];
-  state.sideOrder = Math.random() > 0.5 ? [0, 1] : [1, 0];
+function assignTasks() {
+  const taskIds = PARTICIPATION_TASKS.map(task => task.id);
+  const deck = [];
+  while (deck.length < state.names.length) deck.push(...shuffle(taskIds));
+  state.taskAssignments = state.names.map((name, index) => ({ name, taskId: deck[index] }));
 }
 
-function rolesFor(team) {
-  const roles = ROLE_SETS[team.length] || ROLE_SETS[4];
-  return team.map((participant, index) => ({ participant, role: roles[index % roles.length].name, prompt: roles[index % roles.length].prompt }));
+function taskById(taskId) {
+  return PARTICIPATION_TASKS.find(task => task.id === taskId) || PARTICIPATION_TASKS[0];
+}
+
+function assignmentsMatchNames() {
+  return state.taskAssignments.length === state.names.length && state.taskAssignments.every((assignment, index) =>
+    assignment.name === state.names[index] && PARTICIPATION_TASKS.some(task => task.id === assignment.taskId)
+  );
+}
+
+function rerollTask(index) {
+  const assignment = state.taskAssignments[index];
+  if (!assignment) return;
+  const choices = PARTICIPATION_TASKS.filter(task => task.id !== assignment.taskId);
+  assignment.taskId = choices[Math.floor(Math.random() * choices.length)].id;
 }
 
 function escapeHTML(value) {
@@ -72,10 +89,37 @@ function head(kicker, title, lede, time = true) {
   return `<header class="stage-head"><div class="eyebrow mono">${kicker}</div><h1 class="serif">${title}</h1>${lede ? `<p class="lede">${lede}</p>` : ""}${time ? `<span class="time-note">建议 ${STAGES[state.stage].time}</span>` : ""}</header>`;
 }
 
+function caseBlock(topic, compact = false) {
+  return `<article class="case-card ${compact ? "case-card-compact" : ""}">
+    <div class="case-kicker mono">共同案例 · ${topic.shortTitle}</div>
+    <h2 class="serif">${topic.caseStudy.title}</h2>
+    <p class="case-text">${topic.caseStudy.text}</p>
+    <div class="case-question"><strong>一起回答：</strong>${topic.caseStudy.question}</div>
+  </article>`;
+}
+
+function taskCards() {
+  return `<section class="task-grid" aria-label="随机参与任务">${state.taskAssignments.map((assignment, index) => {
+    const task = taskById(assignment.taskId);
+    return `<article class="task-card">
+      <div class="task-card-head"><strong>${escapeHTML(assignment.name)}</strong><button class="reroll-button" data-reroll-task="${index}" type="button" aria-label="为 ${escapeHTML(assignment.name)} 换一张任务">换一张</button></div>
+      <div class="task-name">${task.name}</div>
+      <p>${task.prompt}</p>
+    </article>`;
+  }).join("")}</section>`;
+}
+
+function taskRoster() {
+  return `<div class="task-roster" aria-label="参与任务提醒">${state.taskAssignments.map(assignment => {
+    const task = taskById(assignment.taskId);
+    return `<span class="name-chip">${escapeHTML(assignment.name)} · ${task.name}</span>`;
+  }).join("")}</div>`;
+}
+
 function renderTopics() {
-  app.innerHTML = `${head("CHOOSE A QUESTION", "今晚想聊哪一个问题？", "不用马上选边。大家先看看，哪一题最贴近最近的生活？")}
+  app.innerHTML = `${head("CHOOSE A QUESTION", "今晚想聊哪一个两难？", "题目里有两股真实拉力，但今晚不分队。每个人都只说自己真正怎么想。")}
     <section class="topic-grid" aria-label="十个讨论主题">
-      ${TOPICS.map((topic, index) => `<button class="topic-card ${state.topicId === topic.id ? "selected" : ""}" data-topic="${topic.id}" type="button" aria-pressed="${state.topicId === topic.id}"><div class="topic-index mono">${String(index + 1).padStart(2, "0")}</div><h2 class="serif">${topic.title}</h2><p>${topic.tension}</p></button>`).join("")}
+      ${TOPICS.map((topic, index) => `<button class="topic-card ${state.topicId === topic.id ? "selected" : ""}" data-topic="${topic.id}" type="button" aria-pressed="${state.topicId === topic.id}"><div class="topic-index mono">${String(index + 1).padStart(2, "0")}</div><h2 class="serif">${topic.title}</h2><p>${topic.tension.join(" / ")}</p></button>`).join("")}
     </section>`;
 }
 
@@ -85,9 +129,9 @@ function renderNames() {
     <div class="setup-grid">
       <section class="panel">
         <h2 class="serif">参与者名单</h2>
-        <p class="quiet-note">至少输入 2 个名字，不设人数上限。6–8 人的讨论节奏通常最舒服，但人少或人多也可以继续。名单只保存在这台电脑，不会上传。</p>
-        <form id="nameForm" class="name-form"><input id="nameInput" maxlength="20" autocomplete="off" placeholder="输入名字后按 Enter" aria-label="参与者名字"><button class="ink-button" type="submit">加入</button></form>
-        <div class="count-status">现在有 <strong>${state.names.length}</strong> 人${state.names.length < 2 ? "，还需要至少 " + (2 - state.names.length) + " 人" : state.names.length < 6 ? "，可以继续；人数较少时每个人会多做一点" : state.names.length <= 8 ? "，很适合这个活动" : "，可以继续；同一种任务会分给不止一个人"}。</div>
+        <p class="quiet-note">至少输入 2 个名字。下一步会为每个人随机发一张很小的参与任务；任务不代表立场，也可以随时换。</p>
+        <form id="nameForm" class="name-form"><input id="nameInput" maxlength="20" autocomplete="off" placeholder="输入名字后按 Enter" aria-label="参与者名字"><button class="ink-button" type="submit">加入名单</button></form>
+        <div class="count-status">现在有 <strong>${state.names.length}</strong> 人${state.names.length < 2 ? "，还需要至少 " + (2 - state.names.length) + " 人" : "，可以继续"}。</div>
       </section>
       <section class="panel">
         <h2 class="serif">今晚在场</h2>
@@ -96,101 +140,104 @@ function renderNames() {
     </div>`;
 }
 
-function renderTeams() {
+function renderCaseAndTasks() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("TRY THE OTHER SIDE", "先帮你分到的这一边说话", "这不是正式辩论，也没有固定发言顺序。每个人只要完成一个小任务。觉得分组不合适，可以交换成员。")}
-    <div class="principle-banner"><strong>先不用说自己真正赞成哪边。</strong> 这里的分组只是今晚的任务，不是在给人贴标签。</div>
-    <section class="team-grid">
-      ${state.teams.map((team, teamIndex) => {
-        const side = topic.sides[state.sideOrder[teamIndex]];
-        return `<article class="team-card"><header class="team-head"><div class="side-label mono">${teamIndex === 0 ? "TEAM A" : "TEAM B"}</div><h2 class="serif">${side.label}</h2><div class="team-side">${side.brief}</div></header><div class="member-list">${rolesFor(team).map((member, index) => { const picked = state.swapPick?.team === teamIndex && state.swapPick?.index === index; return `<div class="member-row ${picked ? "swap-picked" : ""}"><div><strong>${escapeHTML(member.participant)}</strong><div class="member-role">${member.role}</div></div><button class="move-button" data-swap="${teamIndex}:${index}" type="button">${picked ? "已选择 · 再按取消" : "选择交换"}</button></div><div class="role-prompt">${member.prompt}</div>`; }).join("")}</div></article>`;
-      }).join("")}
+  app.innerHTML = `${head("ONE CASE, MANY ANSWERS", "先认识同一个案例", "案例是虚构的。你可以只谈案例，不需要分享自己的类似经历。")}
+    ${caseBlock(topic)}
+    <section class="task-section">
+      <div class="section-heading"><div><div class="eyebrow mono">ONE SMALL PART</div><h2 class="serif">每个人只拿一个小任务</h2></div><p>任务只要求一句话，可以在任何时候完成；不规定发言顺序。觉得不合适就换一张。</p></div>
+      ${taskCards()}
+    </section>
+    ${topic.safety ? `<aside class="safety-note"><strong>主持提醒：</strong>${topic.safety}</aside>` : ""}`;
+}
+
+function renderFirstDiscussion() {
+  const topic = selectedTopic();
+  app.innerHTML = `${head("YOUR REAL VIEW", "第一轮：只说自己怎么想", "不需要让两边人数一样，也不用替现场没人赞成的观点说话。")}
+    <div class="principle-banner"><strong>从案例开始：</strong>说出你认为下一步该做什么，以及最重要的一个理由。</div>
+    ${caseBlock(topic, true)}
+    <section class="task-reminder"><h2 class="serif">今晚的小任务</h2>${taskRoster()}</section>`;
+}
+
+function renderChanges() {
+  const topic = selectedTopic();
+  const change = topic.changes[state.changeIndex];
+  app.innerHTML = `${head("CHANGE ONE THING", "如果情况有了变化", "这不是额外挑战。我们只给同一个案例增加一个新事实。")}
+    <section class="scenario-stage">
+      <nav class="scenario-nav" aria-label="情况变化">${topic.changes.map((item, index) => `<button class="scenario-tab ${index === state.changeIndex ? "active" : ""}" data-change="${index}" type="button"><span class="mono">0${index + 1}</span> · ${item.label}</button>`).join("")}</nav>
+      <article class="scenario-card">
+        <div class="scenario-changed mono">现在只增加 · ${change.label}</div>
+        <h2 class="serif">${change.text}</h2>
+        <div class="scenario-question"><strong>再想一次：</strong><br>知道这个变化后，你的判断变了吗？为什么？</div>
+      </article>
     </section>`;
 }
 
-function renderPreparation() {
+function renderScripture() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("GET READY", topic.title, "两组分开准备：为什么一个认真信主的人会这样想？")}
-    <div class="principle-banner">先别想怎么反驳另一组。你们的目标只有一个：<strong>把自己这边的道理说清楚。</strong></div>
-    <section class="side-grid">${state.teams.map((team, teamIndex) => { const side = topic.sides[state.sideOrder[teamIndex]]; return `<article class="side-card"><div class="side-label mono">${teamIndex === 0 ? "TEAM A" : "TEAM B"}</div><h2 class="serif">${side.label}</h2><p>${side.brief}</p><div class="name-list">${rolesFor(team).map(member => `<span class="name-chip">${escapeHTML(member.participant)} · ${member.role}</span>`).join("")}</div></article>`; }).join("")}</section>
-    <div class="prompt-list"><div class="prompt-tile"><strong>为什么要这样选？</strong>这边最想保护什么人或什么事情？</div><div class="prompt-tile"><strong>举个普通的例子</strong>想想这种做法什么时候真的有帮助。</div><div class="prompt-tile"><strong>别把话说得太绝对</strong>先说清楚：这种做法什么时候不适用？</div></div>
-    <section class="scripture-area"><button id="toggleVerses" class="soft-button" type="button" aria-expanded="${state.versesOpen}">${state.versesOpen ? "收起经文入口" : "需要一点提示？查看经文入口"}</button>${state.versesOpen ? `<div class="scripture-list">${topic.verses.map(verse => `<article class="scripture-card"><strong class="serif">${verse.ref}</strong><p>${verse.note}</p></article>`).join("")}</div>` : ""}</section>`;
-}
-
-function renderSharing() {
-  const topic = selectedTopic();
-  const teamIndex = state.shareSide;
-  const side = topic.sides[state.sideOrder[teamIndex]];
-  app.innerHTML = `${head("LISTEN FIRST", "两组轮流分享", "可以一个人开头，其他人接着补充。听对方说完再回应。")}
-    <section class="share-focus"><div><div class="eyebrow mono">现在分享 · ${teamIndex === 0 ? "TEAM A" : "TEAM B"}</div><h2 class="serif">${side.label}</h2><p>${side.brief}</p><div class="name-list" style="justify-content:center">${state.teams[teamIndex].map(name => `<span class="name-chip">${escapeHTML(name)}</span>`).join("")}</div><div class="share-switch"><button class="soft-button" data-share="0" type="button" ${teamIndex === 0 ? "disabled" : ""}>A 组分享</button><button class="soft-button" data-share="1" type="button" ${teamIndex === 1 ? "disabled" : ""}>B 组分享</button></div></div></section>`;
-}
-
-function renderScenarios() {
-  const topic = selectedTopic();
-  const scenario = topic.scenarios[state.scenarioIndex];
-  app.innerHTML = `${head("CHANGE ONE THING", "如果情况稍微变了，你们还会这样选吗？", "每次只看一个变化。两组不用重新辩论，只要决定：我们仍然坚持本方，还是要承认一个例外？")}
-    <section class="scenario-stage"><nav class="scenario-nav" aria-label="情况变化">${topic.scenarios.map((item, index) => `<button class="scenario-tab ${index === state.scenarioIndex ? "active" : ""}" data-scenario="${index}" type="button"><span class="mono">0${index + 1}</span> · 改变${item.changed}</button>`).join("")}</nav><article class="scenario-card" key="${state.scenarioIndex}"><div class="scenario-changed mono">这次只改变 · ${scenario.changed}</div><h2 class="serif">${scenario.text}</h2><div class="scenario-question"><strong>两组各完成一句话：</strong><br>“有了这个变化，我们还是这样选／我们要改一下，因为……”</div></article></section>`;
-}
-
-function renderDiscussion() {
-  const topic = selectedTopic();
-  app.innerHTML = `${head("TALK TOGETHER", "现在说回自己的想法", `今晚的问题：${topic.title}`)}
-    <div class="principle-banner">分组到这里就结束了。你可以同意任何一边，也可以改掉刚才的说法。不用交代自己一开始怎么想。</div>
-    <section class="discussion-grid"><article class="question-block"><span class="mono">01 · WHAT CHANGED?</span><h2 class="serif">刚才哪一个情况最容易让你改变选择？为什么？</h2></article><article class="question-block"><span class="mono">02 · WHAT MATTERS?</span><h2 class="serif">两边分别在担心什么？这些担心哪里有道理？</h2></article><article class="question-block"><span class="mono">03 · WHAT STAYS?</span><h2 class="serif">不管情况怎么变，有什么东西一定不能丢？</h2></article></section>
-    <aside class="safety-note"><strong>主持提醒：</strong>${topic.safety}</aside>`;
+  app.innerHTML = `${head("READ AFTER LISTENING", "现在回到经文", "先听过彼此的真实想法，再让经文拓宽、肯定或修正我们的判断。")}
+    <div class="principle-banner"><strong>读完每段都问：</strong>它肯定了刚才的哪一点？又可能纠正哪一点？</div>
+    <section class="scripture-list">${topic.verses.map(verse => `<article class="scripture-card"><strong class="serif">${verse.ref}</strong><p>${verse.note}</p></article>`).join("")}</section>
+    <section class="task-reminder"><h2 class="serif">任务提醒</h2>${taskRoster()}</section>`;
 }
 
 function renderSummary() {
   const topic = selectedTopic();
-  const summary = topic.summary;
-  app.innerHTML = `${head("LET'S WRAP UP", "最后把重点收一收", "这不是标准答案。它只是帮我们看看：两边为什么都有道理，又可能在哪里走过头。", false)}
-    <section class="summary-section"><h2 class="serif">大家到底在争什么？</h2><div class="summary-card summary-wide"><p>${summary.common}</p></div></section>
-    <section class="summary-grid summary-section"><article class="summary-card"><h3 class="serif">两边说对了什么</h3><ul>${summary.strengths.map(item => `<li>${item}</li>`).join("")}</ul></article><article class="summary-card"><h3 class="serif">两边可能错在哪里</h3><ul>${summary.extremes.map(item => `<li>${item}</li>`).join("")}</ul></article><article class="summary-card"><h3 class="serif">什么情况会改变选择</h3><p>${summary.variables}</p></article><article class="summary-card"><h3 class="serif">可以怎样一起考虑</h3><p>${summary.integration}</p></article><article class="summary-card summary-wide"><h3 class="serif">最后还是要自己判断的地方</h3><p>${summary.unresolved}</p></article></section>
-    <section class="summary-section"><h2 class="serif">回到经文</h2><div class="scripture-list">${topic.verses.map(verse => `<article class="scripture-card"><strong class="serif">${verse.ref}</strong><p>${verse.note}</p></article>`).join("")}</div></section>
-    <section class="summary-section"><h2 class="serif">延伸来源</h2><div class="source-list">${topic.sources.map(source => `<a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.label} ↗</a>`).join("")}</div></section>
-    <aside class="safety-note"><strong>最后提醒：</strong>${topic.safety}</aside>`;
+  app.innerHTML = `${head("TWO THINGS TO HOLD", "最后看见两种常见考虑", "这不是标准答案，也不要求大家最后选同一边。", false)}
+    <section class="consideration-grid">${topic.considerations.map((item, index) => `<article class="consideration-card consideration-${index + 1}"><div class="side-label mono">${index === 0 ? "ONE CONSIDERATION" : "ANOTHER CONSIDERATION"}</div><h2 class="serif">${item.label}</h2><p>${item.text}</p></article>`).join("")}</section>`;
 }
 
+const RENDERERS = [renderTopics, renderNames, renderCaseAndTasks, renderFirstDiscussion, renderChanges, renderScripture, renderSummary];
+
 function render() {
+  if (!Number.isInteger(state.stage) || state.stage < 0 || state.stage >= STAGES.length) state.stage = 0;
   if (state.stage > 0 && !selectedTopic()) state.stage = 0;
-  if (state.stage > 1 && (!state.teams || state.names.length < 2)) state.stage = 1;
-  [renderTopics, renderNames, renderTeams, renderPreparation, renderSharing, renderScenarios, renderDiscussion, renderSummary][state.stage]();
+  if (state.stage > 1 && state.names.length < 2) state.stage = 1;
+  if (state.stage > 1 && !assignmentsMatchNames()) assignTasks();
+  const topic = selectedTopic();
+  if (!Number.isInteger(state.changeIndex) || state.changeIndex < 0 || (topic && state.changeIndex >= topic.changes.length)) state.changeIndex = 0;
+
+  RENDERERS[state.stage]();
   const info = STAGES[state.stage];
-  progressLabel.textContent = `${String(state.stage + 1).padStart(2, "0")} / 08 · ${info.label}`;
+  progressLabel.textContent = `${String(state.stage + 1).padStart(2, "0")} / ${String(STAGES.length).padStart(2, "0")} · ${info.label}`;
   progressBar.style.width = `${((state.stage + 1) / STAGES.length) * 100}%`;
   stageHint.textContent = info.hint;
   backButton.disabled = state.stage === 0;
   nextButton.hidden = state.stage === STAGES.length - 1;
   nextButton.disabled = (state.stage === 0 && !state.topicId) || (state.stage === 1 && state.names.length < 2);
-  nextButton.textContent = state.stage === 6 ? "看看最后总结 →" : "下一步 →";
+  nextButton.textContent = ["下一步 →", "发任务 →", "开始讨论 →", "看看情况变化 →", "一起读经文 →", "最后整理 →"][state.stage] || "下一步 →";
   saveState();
 }
 
 app.addEventListener("click", event => {
   const topicButton = event.target.closest("[data-topic]");
-  if (topicButton) { state.topicId = topicButton.dataset.topic; state.teams = null; render(); return; }
-  const removeButton = event.target.closest("[data-remove-name]");
-  if (removeButton) { state.names.splice(Number(removeButton.dataset.removeName), 1); state.teams = null; render(); return; }
-  const swapButton = event.target.closest("[data-swap]");
-  if (swapButton) {
-    const [team, index] = swapButton.dataset.swap.split(":").map(Number);
-    const clickedPickAgain = state.swapPick?.team === team && state.swapPick?.index === index;
-    if (clickedPickAgain) {
-      state.swapPick = null;
-    } else if (!state.swapPick) {
-      state.swapPick = { team, index };
-    } else {
-      const first = state.swapPick;
-      [state.teams[first.team][first.index], state.teams[team][index]] = [state.teams[team][index], state.teams[first.team][first.index]];
-      state.swapPick = null;
-    }
-    render(); return;
+  if (topicButton) {
+    state.topicId = topicButton.dataset.topic;
+    state.changeIndex = 0;
+    render();
+    return;
   }
-  const shareButton = event.target.closest("[data-share]");
-  if (shareButton) { state.shareSide = Number(shareButton.dataset.share); render(); return; }
-  const scenarioButton = event.target.closest("[data-scenario]");
-  if (scenarioButton) { state.scenarioIndex = Number(scenarioButton.dataset.scenario); render(); return; }
-  if (event.target.closest("#toggleVerses")) { state.versesOpen = !state.versesOpen; render(); }
+
+  const removeButton = event.target.closest("[data-remove-name]");
+  if (removeButton) {
+    state.names.splice(Number(removeButton.dataset.removeName), 1);
+    state.taskAssignments = [];
+    render();
+    return;
+  }
+
+  const rerollButton = event.target.closest("[data-reroll-task]");
+  if (rerollButton) {
+    rerollTask(Number(rerollButton.dataset.rerollTask));
+    render();
+    return;
+  }
+
+  const changeButton = event.target.closest("[data-change]");
+  if (changeButton) {
+    state.changeIndex = Number(changeButton.dataset.change);
+    render();
+  }
 });
 
 app.addEventListener("submit", event => {
@@ -199,18 +246,30 @@ app.addEventListener("submit", event => {
   const input = event.target.querySelector("#nameInput");
   const name = input.value.trim();
   if (!name || state.names.some(item => item.toLowerCase() === name.toLowerCase())) return;
-  state.names.push(name); state.teams = null; render();
+  state.names.push(name);
+  state.taskAssignments = [];
+  render();
   requestAnimationFrame(() => document.querySelector("#nameInput")?.focus());
 });
 
-backButton.addEventListener("click", () => { if (state.stage > 0) { state.stage -= 1; render(); } });
+backButton.addEventListener("click", () => {
+  if (state.stage > 0) {
+    state.stage -= 1;
+    render();
+  }
+});
+
 nextButton.addEventListener("click", () => {
   if (state.stage === 0 && !state.topicId) return;
   if (state.stage === 1) {
     if (state.names.length < 2) return;
-    makeTeams();
+    if (!assignmentsMatchNames()) assignTasks();
   }
-  if (state.stage < STAGES.length - 1) { state.stage += 1; render(); window.scrollTo({ top: 0, behavior: "smooth" }); }
+  if (state.stage < STAGES.length - 1) {
+    state.stage += 1;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 });
 
 fullscreenButton.addEventListener("click", async () => {
@@ -219,15 +278,36 @@ fullscreenButton.addEventListener("click", async () => {
     else await document.exitFullscreen();
   } catch { /* Fullscreen is optional. */ }
 });
-document.addEventListener("fullscreenchange", () => { fullscreenButton.textContent = document.fullscreenElement ? "退出全屏" : "全屏"; });
 
-resetButton.addEventListener("click", () => { confirmDialog.hidden = false; document.querySelector("#cancelReset").focus(); });
-document.querySelector("#cancelReset").addEventListener("click", () => { confirmDialog.hidden = true; });
-document.querySelector("#confirmReset").addEventListener("click", () => { localStorage.removeItem(STORAGE_KEY); state = defaultState(); confirmDialog.hidden = true; render(); });
-confirmDialog.addEventListener("click", event => { if (event.target === confirmDialog) confirmDialog.hidden = true; });
+document.addEventListener("fullscreenchange", () => {
+  fullscreenButton.textContent = document.fullscreenElement ? "退出全屏" : "全屏";
+});
+
+resetButton.addEventListener("click", () => {
+  confirmDialog.hidden = false;
+  document.querySelector("#cancelReset").focus();
+});
+
+document.querySelector("#cancelReset").addEventListener("click", () => {
+  confirmDialog.hidden = true;
+});
+
+document.querySelector("#confirmReset").addEventListener("click", () => {
+  localStorage.removeItem(STORAGE_KEY);
+  state = defaultState();
+  confirmDialog.hidden = true;
+  render();
+});
+
+confirmDialog.addEventListener("click", event => {
+  if (event.target === confirmDialog) confirmDialog.hidden = true;
+});
 
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !confirmDialog.hidden) { confirmDialog.hidden = true; return; }
+  if (event.key === "Escape" && !confirmDialog.hidden) {
+    confirmDialog.hidden = true;
+    return;
+  }
   if (["INPUT", "TEXTAREA"].includes(document.activeElement?.tagName)) return;
   if (event.key === "ArrowLeft" && !backButton.disabled) backButton.click();
   if (event.key === "ArrowRight" && !nextButton.hidden && !nextButton.disabled) nextButton.click();
