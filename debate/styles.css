@@ -85,6 +85,29 @@ h1, h2, h3, p { margin-top: 0; }
 .case-question { padding-top: 20px; border-top: 1px solid var(--line); color: var(--teal); font-size: clamp(18px, 2vw, 24px); line-height: 1.6; }
 .case-question strong { margin-right: 8px; }
 
+.side-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.side-card { min-height: 300px; padding: clamp(24px, 3.5vw, 42px); border: 1px solid var(--line); border-top: 5px solid var(--teal); border-radius: var(--radius); background: var(--surface); }
+.side-card.side-2 { border-top-color: var(--blue); }
+.side-tag { color: var(--faint); font-size: 11px; letter-spacing: .12em; margin-bottom: 14px; }
+.side-card h2 { margin-bottom: 17px; font-size: clamp(32px, 4vw, 50px); line-height: 1.18; }
+.side-card h3 { margin: 0 0 9px; color: var(--teal); font-size: 18px; }
+.side-card.side-2 h3 { color: var(--blue); }
+.side-card p { margin-bottom: 0; color: var(--muted); font-size: 18px; line-height: 1.8; }
+.side-grid-compact { gap: 12px; margin-bottom: 24px; }
+.side-grid-compact .side-card { min-height: 0; padding: 24px; }
+.side-grid-compact .side-card h2 { margin-bottom: 10px; font-size: clamp(27px, 3vw, 38px); }
+.side-grid-compact .side-card h3 { font-size: 16px; }
+.side-grid-compact .side-card p { font-size: 15px; line-height: 1.65; }
+
+.optional-case { margin-top: 26px; padding: 20px; border: 1px dashed var(--line); border-radius: var(--radius); background: rgba(255,253,250,.48); }
+.optional-case-head { display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+.optional-case-head .eyebrow { margin-bottom: 7px; }
+.optional-case-head h2 { margin-bottom: 5px; font-size: 26px; }
+.optional-case-head p { margin-bottom: 0; color: var(--muted); line-height: 1.6; }
+.case-toggle { flex: 0 0 auto; }
+.optional-case .case-card { margin-top: 20px; }
+.optional-case .case-card-compact { margin-bottom: 0; }
+
 .task-section { margin-top: 38px; }
 .section-heading { display: flex; justify-content: space-between; gap: 32px; align-items: end; margin-bottom: 16px; }
 .section-heading .eyebrow { margin-bottom: 8px; }
@@ -110,6 +133,7 @@ h1, h2, h3, p { margin-top: 0; }
 .scripture-card p { color: var(--muted); font-size: 15px; line-height: 1.65; margin: 0; }
 
 .scenario-stage { display: grid; grid-template-columns: minmax(260px,.55fr) minmax(0,1.45fr); gap: 28px; }
+.scenario-section { margin-top: 38px; }
 .scenario-nav { display: grid; gap: 8px; align-content: start; }
 .scenario-tab { padding: 15px; text-align: left; border: 1px solid var(--line); border-radius: 7px; color: var(--muted); background: transparent; }
 .scenario-tab.active { color: var(--ink); background: var(--surface); border-color: var(--amber); }
@@ -117,6 +141,7 @@ h1, h2, h3, p { margin-top: 0; }
 .scenario-changed { color: var(--amber); font-size: 12px; letter-spacing: .14em; margin-bottom: 18px; }
 .scenario-card h2 { font-size: clamp(30px,4vw,52px); line-height: 1.35; }
 .scenario-question { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--teal); font-size: 18px; line-height: 1.6; }
+.case-closed-note { margin-top: 24px; padding: 18px 20px; border-left: 3px solid var(--blue); background: var(--blue-soft); color: var(--blue); line-height: 1.65; }
 
 .consideration-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
 .consideration-card { min-height: 300px; padding: clamp(24px, 3.5vw, 42px); border: 1px solid var(--line); border-top: 5px solid var(--teal); border-radius: var(--radius); background: var(--surface); }
@@ -151,10 +176,12 @@ h1, h2, h3, p { margin-top: 0; }
   .progress-wrap { grid-column: 1 / -1; grid-row: 2; }
   .top-actions { grid-column: 2; grid-row: 1; }
   .page { width: min(100% - 28px,1240px); padding-top: 30px; }
-  .topic-grid, .setup-grid, .scenario-stage, .consideration-grid { grid-template-columns: 1fr; }
+  .topic-grid, .setup-grid, .side-grid, .scenario-stage, .consideration-grid { grid-template-columns: 1fr; }
   .scripture-list { grid-template-columns: 1fr; }
   .section-heading { display: block; }
   .section-heading > p { margin-top: 12px; }
+  .optional-case-head { display: block; }
+  .case-toggle { margin-top: 15px; }
   .stage-footer { grid-template-columns: 1fr 1fr; padding: 10px 14px; }
   .footer-hint { grid-column: 1 / -1; grid-row: 1; }
   .scenario-card { min-height: 320px; padding: 28px 20px; }

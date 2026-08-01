@@ -1,14 +1,14 @@
 import { TOPICS, PARTICIPATION_TASKS } from "./topics.js";
 
-const STORAGE_KEY = "pnyl-between-sides-v2";
+const STORAGE_KEY = "pnyl-between-sides-v3";
 const STAGES = [
-  { label: "共同选题", hint: "先选一个今晚真的想聊的问题。", time: "5 分钟" },
+  { label: "共同选题", hint: "每题都有明确的 A、B 两方。", time: "5 分钟" },
   { label: "输入名单", hint: "至少 2 人；名单只用来随机发一张小任务。", time: "3 分钟" },
-  { label: "案例和任务", hint: "所有人讨论同一个虚构案例；任务可以随时换。", time: "3–5 分钟" },
-  { label: "第一轮讨论", hint: "只说自己真实的判断，不需要替任何一边说话。", time: "10–12 分钟" },
-  { label: "情况变化", hint: "每次只增加一个新事实，看看判断有没有改变。", time: "10–12 分钟" },
-  { label: "回到经文", hint: "经文不是用来压过别人，而是肯定和修正刚才的想法。", time: "10 分钟" },
-  { label: "最后整理", hint: "不用达成一致，只看见两种常见考虑。", time: "5 分钟" }
+  { label: "自由选边", hint: "选你真正支持的一方；任务可以随时换。", time: "3–5 分钟" },
+  { label: "双方陈述", hint: "围绕所选立场给理由，不另开新题。", time: "10–12 分钟" },
+  { label: "回应或案例", hint: "先回应另一方；需要时再显示具体案例。", time: "10–12 分钟" },
+  { label: "回到经文", hint: "看经文分别支持或提醒了哪一方。", time: "10 分钟" },
+  { label: "最后看两边", hint: "不用达成一致，只把双方立场看清楚。", time: "5 分钟" }
 ];
 
 const defaultState = () => ({
@@ -16,7 +16,8 @@ const defaultState = () => ({
   topicId: null,
   names: [],
   taskAssignments: [],
-  changeIndex: 0
+  changeIndex: 0,
+  caseRevealed: false
 });
 
 let state = loadState();
@@ -94,8 +95,36 @@ function caseBlock(topic, compact = false) {
     <div class="case-kicker mono">共同案例 · ${topic.shortTitle}</div>
     <h2 class="serif">${topic.caseStudy.title}</h2>
     <p class="case-text">${topic.caseStudy.text}</p>
-    <div class="case-question"><strong>一起回答：</strong>${topic.caseStudy.question}</div>
+    <div class="case-question"><strong>围绕案例辩论：</strong>${topic.caseStudy.question} 请用案例中的事实说明理由。</div>
   </article>`;
+}
+
+function sideBoard(topic, compact = false) {
+  return `<section class="side-grid ${compact ? "side-grid-compact" : ""}" aria-label="本题的两个立场">
+    ${topic.tension.map((position, index) => {
+      const detail = topic.considerations[index];
+      return `<article class="side-card side-${index + 1}">
+        <div class="side-tag mono">${index === 0 ? "A 方支持" : "B 方支持"}</div>
+        <h2 class="serif">${position}</h2>
+        <h3>${detail.label}</h3>
+        <p>${detail.text}</p>
+      </article>`;
+    }).join("")}
+  </section>`;
+}
+
+function optionalCase(topic, compact = false) {
+  return `<section class="optional-case">
+    <div class="optional-case-head">
+      <div>
+        <div class="eyebrow mono">OPTIONAL CASE</div>
+        <h2 class="serif">需要一个具体例子吗？</h2>
+        <p>如果题目已经够清楚，可以不用案例；觉得太抽象时再打开。</p>
+      </div>
+      <button class="soft-button case-toggle" data-toggle-case type="button" aria-expanded="${state.caseRevealed}" aria-controls="optionalCasePanel">${state.caseRevealed ? "收起具体案例" : "显示具体案例"}</button>
+    </div>
+    ${state.caseRevealed ? `<div id="optionalCasePanel">${caseBlock(topic, compact)}</div>` : ""}
+  </section>`;
 }
 
 function taskCards() {
@@ -117,7 +146,7 @@ function taskRoster() {
 }
 
 function renderTopics() {
-  app.innerHTML = `${head("CHOOSE A QUESTION", "今晚想聊哪一个两难？", "题目里有两股真实拉力，但今晚不分队。每个人都只说自己真正怎么想。")}
+  app.innerHTML = `${head("CHOOSE A QUESTION", "今晚想辩哪一个两难？", "每题都有明确的 A、B 两方。选一个两边都有人可能真心支持的问题。")}
     <section class="topic-grid" aria-label="十个讨论主题">
       ${TOPICS.map((topic, index) => `<button class="topic-card ${state.topicId === topic.id ? "selected" : ""}" data-topic="${topic.id}" type="button" aria-pressed="${state.topicId === topic.id}"><div class="topic-index mono">${String(index + 1).padStart(2, "0")}</div><h2 class="serif">${topic.title}</h2><p>${topic.tension.join(" / ")}</p></button>`).join("")}
     </section>`;
@@ -129,7 +158,7 @@ function renderNames() {
     <div class="setup-grid">
       <section class="panel">
         <h2 class="serif">参与者名单</h2>
-        <p class="quiet-note">至少输入 2 个名字。下一步会为每个人随机发一张很小的参与任务；任务不代表立场，也可以随时换。</p>
+        <p class="quiet-note">至少输入 2 个名字。下一步每个人自由选边，再随机领取一个围绕立场发言的小任务；任务可以随时换。</p>
         <form id="nameForm" class="name-form"><input id="nameInput" maxlength="20" autocomplete="off" placeholder="输入名字后按 Enter" aria-label="参与者名字"><button class="ink-button" type="submit">加入名单</button></form>
         <div class="count-status">现在有 <strong>${state.names.length}</strong> 人${state.names.length < 2 ? "，还需要至少 " + (2 - state.names.length) + " 人" : "，可以继续"}。</div>
       </section>
@@ -140,12 +169,14 @@ function renderNames() {
     </div>`;
 }
 
-function renderCaseAndTasks() {
+function renderSidesAndTasks() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("ONE CASE, MANY ANSWERS", "先认识同一个案例", "案例是虚构的。你可以只谈案例，不需要分享自己的类似经历。")}
-    ${caseBlock(topic)}
+  app.innerHTML = `${head("CHOOSE YOUR SIDE", "先选择你真正支持的一方", "不随机分立场。看完两方后，每个人选择自己此刻更支持的一边。")}
+    <div class="principle-banner"><strong>怎么选边：</strong>人数不用平均，一边暂时没人也没关系；不要派人假装支持。讨论中可以随时换边。</div>
+    ${sideBoard(topic)}
+    ${optionalCase(topic)}
     <section class="task-section">
-      <div class="section-heading"><div><div class="eyebrow mono">ONE SMALL PART</div><h2 class="serif">每个人只拿一个小任务</h2></div><p>任务只要求一句话，可以在任何时候完成；不规定发言顺序。觉得不合适就换一张。</p></div>
+      <div class="section-heading"><div><div class="eyebrow mono">ONE SMALL PART</div><h2 class="serif">每个人拿一个发言任务</h2></div><p>任务只要求一个具体动作，不规定发言顺序。任务不适合就换一张，不需要解释。</p></div>
       ${taskCards()}
     </section>
     ${topic.safety ? `<aside class="safety-note"><strong>主持提醒：</strong>${topic.safety}</aside>` : ""}`;
@@ -153,41 +184,48 @@ function renderCaseAndTasks() {
 
 function renderFirstDiscussion() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("YOUR REAL VIEW", "第一轮：只说自己怎么想", "不需要让两边人数一样，也不用替现场没人赞成的观点说话。")}
-    <div class="principle-banner"><strong>从案例开始：</strong>说出你认为下一步该做什么，以及最重要的一个理由。</div>
-    ${caseBlock(topic, true)}
+  app.innerHTML = `${head("ARGUE YOUR SIDE", "第一轮：为你选的一方说明理由", "A 方和 B 方轮流发言。每次只讲一个与本方主张直接有关的理由。")}
+    <div class="principle-banner"><strong>发言格式：</strong>先说“我站 A／B 方”，再给一个理由。回应时，先指出你在回应对方的哪一条理由。</div>
+    ${sideBoard(topic, true)}
+    ${optionalCase(topic, true)}
     <section class="task-reminder"><h2 class="serif">今晚的小任务</h2>${taskRoster()}</section>`;
 }
 
 function renderChanges() {
   const topic = selectedTopic();
   const change = topic.changes[state.changeIndex];
-  app.innerHTML = `${head("CHANGE ONE THING", "如果情况有了变化", "这不是额外挑战。我们只给同一个案例增加一个新事实。")}
-    <section class="scenario-stage">
-      <nav class="scenario-nav" aria-label="情况变化">${topic.changes.map((item, index) => `<button class="scenario-tab ${index === state.changeIndex ? "active" : ""}" data-change="${index}" type="button"><span class="mono">0${index + 1}</span> · ${item.label}</button>`).join("")}</nav>
-      <article class="scenario-card">
-        <div class="scenario-changed mono">现在只增加 · ${change.label}</div>
-        <h2 class="serif">${change.text}</h2>
-        <div class="scenario-question"><strong>再想一次：</strong><br>知道这个变化后，你的判断变了吗？为什么？</div>
-      </article>
-    </section>`;
+  app.innerHTML = `${head("RESPOND OR TEST", "第二轮：回应，或者用案例检验", "先直接回应另一方刚才的理由。题目太抽象时，再显示具体案例。")}
+    ${sideBoard(topic, true)}
+    ${optionalCase(topic, true)}
+    ${state.caseRevealed ? `<section class="scenario-section">
+      <div class="section-heading"><div><div class="eyebrow mono">CHANGE ONE FACT</div><h2 class="serif">再改变一个事实</h2></div><p>每次只看一个变化，不把三个变化混在一起。</p></div>
+      <section class="scenario-stage">
+        <nav class="scenario-nav" aria-label="情况变化">${topic.changes.map((item, index) => `<button class="scenario-tab ${index === state.changeIndex ? "active" : ""}" data-change="${index}" type="button"><span class="mono">0${index + 1}</span> · ${item.label}</button>`).join("")}</nav>
+        <article class="scenario-card">
+          <div class="scenario-changed mono">现在只增加 · ${change.label}</div>
+          <h2 class="serif">${change.text}</h2>
+          <div class="scenario-question"><strong>再站一次：</strong><br>知道这个变化后，你还站原来一方吗？请说清它怎样影响 A 方或 B 方的理由。</div>
+        </article>
+      </section>
+    </section>` : `<div class="case-closed-note"><strong>不用案例时：</strong>每方选出另一方最有力的一条理由，然后直接回应。不要另开新的话题。</div>`}
+    <section class="task-reminder"><h2 class="serif">任务提醒</h2>${taskRoster()}</section>`;
 }
 
 function renderScripture() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("READ AFTER LISTENING", "现在回到经文", "先听过彼此的真实想法，再让经文拓宽、肯定或修正我们的判断。")}
-    <div class="principle-banner"><strong>读完每段都问：</strong>它肯定了刚才的哪一点？又可能纠正哪一点？</div>
+  app.innerHTML = `${head("READ AFTER DEBATING", "现在回到经文", "先听完双方，再看经文怎样支持、限制或修正两边的理由。")}
+    <div class="principle-banner"><strong>读完每段都问：</strong>它支持了哪一方的什么理由？又提醒那一方不能把什么说得太绝对？</div>
     <section class="scripture-list">${topic.verses.map(verse => `<article class="scripture-card"><strong class="serif">${verse.ref}</strong><p>${verse.note}</p></article>`).join("")}</section>
     <section class="task-reminder"><h2 class="serif">任务提醒</h2>${taskRoster()}</section>`;
 }
 
 function renderSummary() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("TWO THINGS TO HOLD", "最后看见两种常见考虑", "这不是标准答案，也不要求大家最后选同一边。", false)}
-    <section class="consideration-grid">${topic.considerations.map((item, index) => `<article class="consideration-card consideration-${index + 1}"><div class="side-label mono">${index === 0 ? "ONE CONSIDERATION" : "ANOTHER CONSIDERATION"}</div><h2 class="serif">${item.label}</h2><p>${item.text}</p></article>`).join("")}</section>`;
+  app.innerHTML = `${head("TWO CLEAR SIDES", "最后把两边放在一起", "这不是标准答案，也不要求大家最后选同一边。只确认双方真正主张什么。", false)}
+    ${sideBoard(topic)}`;
 }
 
-const RENDERERS = [renderTopics, renderNames, renderCaseAndTasks, renderFirstDiscussion, renderChanges, renderScripture, renderSummary];
+const RENDERERS = [renderTopics, renderNames, renderSidesAndTasks, renderFirstDiscussion, renderChanges, renderScripture, renderSummary];
 
 function render() {
   if (!Number.isInteger(state.stage) || state.stage < 0 || state.stage >= STAGES.length) state.stage = 0;
@@ -196,6 +234,7 @@ function render() {
   if (state.stage > 1 && !assignmentsMatchNames()) assignTasks();
   const topic = selectedTopic();
   if (!Number.isInteger(state.changeIndex) || state.changeIndex < 0 || (topic && state.changeIndex >= topic.changes.length)) state.changeIndex = 0;
+  if (typeof state.caseRevealed !== "boolean") state.caseRevealed = false;
 
   RENDERERS[state.stage]();
   const info = STAGES[state.stage];
@@ -205,13 +244,14 @@ function render() {
   backButton.disabled = state.stage === 0;
   nextButton.hidden = state.stage === STAGES.length - 1;
   nextButton.disabled = (state.stage === 0 && !state.topicId) || (state.stage === 1 && state.names.length < 2);
-  nextButton.textContent = ["下一步 →", "发任务 →", "开始讨论 →", "看看情况变化 →", "一起读经文 →", "最后整理 →"][state.stage] || "下一步 →";
+  nextButton.textContent = ["输入名单 →", "自由选边 →", "开始辩论 →", "双方回应 →", "一起读经文 →", "最后看两边 →"][state.stage] || "下一步 →";
   saveState();
 }
 
 app.addEventListener("click", event => {
   const topicButton = event.target.closest("[data-topic]");
   if (topicButton) {
+    if (state.topicId !== topicButton.dataset.topic) state.caseRevealed = false;
     state.topicId = topicButton.dataset.topic;
     state.changeIndex = 0;
     render();
@@ -229,6 +269,13 @@ app.addEventListener("click", event => {
   const rerollButton = event.target.closest("[data-reroll-task]");
   if (rerollButton) {
     rerollTask(Number(rerollButton.dataset.rerollTask));
+    render();
+    return;
+  }
+
+  const caseButton = event.target.closest("[data-toggle-case]");
+  if (caseButton) {
+    state.caseRevealed = !state.caseRevealed;
     render();
     return;
   }
