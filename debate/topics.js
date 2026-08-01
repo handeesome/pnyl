@@ -20,9 +20,9 @@ export const PARTICIPATION_TASKS = [
     prompt: "说出什么新情况会让你考虑换到另一方。"
   },
   {
-    id: "connect-scripture",
-    name: "联系一段经文",
-    prompt: "读经时选一段，说它支持或提醒了哪一方。"
+    id: "name-side-cost",
+    name: "说出本方代价",
+    prompt: "说出你选择的这一方需要承担的一个代价或风险。"
   }
 ];
 

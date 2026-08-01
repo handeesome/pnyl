@@ -10,6 +10,39 @@ const STAGES = [
   { label: "最后看两边", hint: "不用达成一致，只把双方立场看清楚。", time: "5 分钟" }
 ];
 
+function validateTopics(topics) {
+  if (!Array.isArray(topics) || topics.length === 0) throw new Error("题库必须至少包含一道题。\n");
+  const ids = new Set();
+
+  topics.forEach((topic, index) => {
+    const location = `第 ${index + 1} 题`;
+    const requiredStrings = [topic.id, topic.shortTitle, topic.title, topic.safety];
+    if (requiredStrings.some(value => typeof value !== "string" || !value.trim())) {
+      throw new Error(`${location} 缺少 id、短标题、题目或安全提醒。`);
+    }
+    if (ids.has(topic.id)) throw new Error(`${location} 使用了重复 id：${topic.id}`);
+    ids.add(topic.id);
+
+    if (!Array.isArray(topic.tension) || topic.tension.length !== 2 || topic.tension.some(value => typeof value !== "string" || !value.trim())) {
+      throw new Error(`${location} 必须有且只有两个清楚的立场。`);
+    }
+    if (!Array.isArray(topic.considerations) || topic.considerations.length !== 2) {
+      throw new Error(`${location} 的两个立场必须各有一组核心考虑。`);
+    }
+    if (!topic.caseStudy || [topic.caseStudy.title, topic.caseStudy.text, topic.caseStudy.question].some(value => typeof value !== "string" || !value.trim())) {
+      throw new Error(`${location} 的案例资料不完整。`);
+    }
+    if (!Array.isArray(topic.changes) || topic.changes.length !== 3) {
+      throw new Error(`${location} 必须包含三个单变量变化。`);
+    }
+    if (!Array.isArray(topic.verses) || topic.verses.length !== 3) {
+      throw new Error(`${location} 必须保留三条经文资料。`);
+    }
+  });
+}
+
+validateTopics(TOPICS);
+
 const defaultState = () => ({
   stage: 0,
   topicId: null,
@@ -141,7 +174,7 @@ function unassignedRoster() {
   }).join("")}</div></div>`;
 }
 
-function sideBoard(topic, compact = false) {
+function sideBoard(topic, compact = false, showGuides = false) {
   return `<div class="side-board-group"><section class="side-grid ${compact ? "side-grid-compact" : ""}" aria-label="本题的两个立场">
     ${topic.tension.map((position, index) => {
       const detail = topic.considerations[index];
@@ -149,8 +182,7 @@ function sideBoard(topic, compact = false) {
       return `<article class="side-card side-${index + 1}">
         <div class="side-tag mono">${index === 0 ? "A 方支持" : "B 方支持"}</div>
         <h2 class="serif">${position}</h2>
-        <h3>${detail.label}</h3>
-        <p>${detail.text}</p>
+        ${showGuides ? `<div class="side-guide"><div class="side-guide-kicker">把这一方说到最好</div><h3>${detail.label}</h3><p>${detail.text}</p></div>` : ""}
         ${sideMembers(side)}
       </article>`;
     }).join("")}
@@ -199,8 +231,8 @@ function taskRoster() {
 
 function renderTopics() {
   app.innerHTML = `${head("CHOOSE A QUESTION", "今晚想辩哪一个两难？", "每题都有明确的 A、B 两方。选一个两边都有人可能真心支持的问题。")}
-    <section class="topic-grid" aria-label="十个讨论主题">
-      ${TOPICS.map((topic, index) => `<button class="topic-card ${state.topicId === topic.id ? "selected" : ""}" data-topic="${topic.id}" type="button" aria-pressed="${state.topicId === topic.id}"><div class="topic-index mono">${String(index + 1).padStart(2, "0")}</div><h2 class="serif">${topic.title}</h2><p>${topic.tension.join(" / ")}</p></button>`).join("")}
+    <section class="topic-grid" aria-label="${TOPICS.length} 个讨论主题">
+      ${TOPICS.map((topic, index) => `<button class="topic-card ${state.topicId === topic.id ? "selected" : ""}" data-topic="${topic.id}" type="button" aria-pressed="${state.topicId === topic.id}"><div class="topic-meta"><span class="topic-index mono">${String(index + 1).padStart(2, "0")}</span><span class="topic-short">${topic.shortTitle}</span></div><h2 class="serif">${topic.title}</h2><p>${topic.tension.join(" / ")}</p></button>`).join("")}
     </section>`;
 }
 
@@ -224,7 +256,7 @@ function renderNames() {
 function renderSidesAndTasks() {
   const topic = selectedTopic();
   app.innerHTML = `${head("CHOOSE YOUR SIDE", "先选择你真正支持的一方", "不随机分立场。看完两方后，在每个人的任务卡上选择 A 方或 B 方。")}
-    <div class="principle-banner"><strong>怎么选边：</strong>人数不用平均，一边暂时没人也没关系；不要派人假装支持。名单会显示在对应论点下，之后可以随时换边。</div>
+    <div class="principle-banner"><strong>怎么选边：</strong>先只看两边主张，按自己的真实判断选。参考论点会在第一轮之后才出现，避免替大家预先作答。</div>
     ${sideBoard(topic)}
     <section class="task-section">
       <div class="section-heading"><div><div class="eyebrow mono">CHOOSE & TAKE ONE PART</div><h2 class="serif">选边，并拿一个发言任务</h2></div><p>在自己的卡片上选 A 方或 B 方。任务不合适可以换一张，不需要解释。</p></div>
@@ -237,7 +269,7 @@ function renderSidesAndTasks() {
 function renderFirstDiscussion() {
   const topic = selectedTopic();
   app.innerHTML = `${head("ARGUE YOUR SIDE", "第一轮：为你选的一方说明理由", "A 方和 B 方轮流发言。每次只讲一个与本方主张直接有关的理由。")}
-    <div class="principle-banner"><strong>发言格式：</strong>先说“我站 A／B 方”，再给一个理由。回应时，先指出你在回应对方的哪一条理由。</div>
+    <div class="principle-banner"><strong>先用自己的理由：</strong>先说“我站 A／B 方”，再给一个理由。系统暂不显示参考论点；回应时，先指出你在回应对方的哪一条理由。</div>
     ${sideBoard(topic, true)}
     ${optionalCase(topic, true)}
     <section class="task-reminder"><h2 class="serif">今晚的小任务</h2>${taskRoster()}</section>`;
@@ -246,8 +278,8 @@ function renderFirstDiscussion() {
 function renderChanges() {
   const topic = selectedTopic();
   const change = topic.changes[state.changeIndex];
-  app.innerHTML = `${head("RESPOND OR TEST", "第二轮：回应，或者用案例检验", "先直接回应另一方刚才的理由。题目太抽象时，再显示具体案例。")}
-    ${sideBoard(topic, true)}
+  app.innerHTML = `${head("RESPOND OR TEST", "第二轮：回应，或者用案例检验", "现在会显示双方最重要的考虑。先把对方的理由说到最好，再回应；题目太抽象时，再显示具体案例。")}
+    ${sideBoard(topic, true, true)}
     ${optionalCase(topic, true)}
     ${state.caseRevealed ? `<section class="scenario-section">
       <div class="section-heading"><div><div class="eyebrow mono">CHANGE ONE FACT</div><h2 class="serif">再改变一个事实</h2></div><p>每次只看一个变化，不把三个变化混在一起。</p></div>
@@ -266,7 +298,7 @@ function renderChanges() {
 function renderSummary() {
   const topic = selectedTopic();
   app.innerHTML = `${head("TWO CLEAR SIDES", "最后把两边放在一起", "这不是标准答案，也不要求大家最后选同一边。只确认双方真正主张什么。", false)}
-    ${sideBoard(topic)}`;
+    ${sideBoard(topic, false, true)}`;
 }
 
 const RENDERERS = [renderTopics, renderNames, renderSidesAndTasks, renderFirstDiscussion, renderChanges, renderSummary];

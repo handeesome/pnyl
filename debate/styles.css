@@ -61,7 +61,9 @@ h1, h2, h3, p { margin-top: 0; }
 .topic-card { min-height: 184px; padding: 22px; text-align: left; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255,253,250,.76); color: var(--ink); transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
 .topic-card:hover { transform: translateY(-2px); border-color: var(--amber); box-shadow: 0 8px 24px rgba(54,39,22,.08); }
 .topic-card.selected { border: 2px solid var(--amber); background: var(--surface); box-shadow: var(--shadow); }
-.topic-index { color: var(--amber); font-size: 11px; margin-bottom: 12px; }
+.topic-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.topic-index { color: var(--amber); font-size: 11px; }
+.topic-short { color: var(--muted); font-size: 13px; font-weight: 700; }
 .topic-card h2 { font-size: clamp(21px, 2vw, 29px); line-height: 1.42; margin-bottom: 12px; }
 .topic-card p { color: var(--muted); margin-bottom: 0; }
 
@@ -93,6 +95,8 @@ h1, h2, h3, p { margin-top: 0; }
 .side-card h3 { margin: 0 0 9px; color: var(--teal); font-size: 18px; }
 .side-card.side-2 h3 { color: var(--blue); }
 .side-card p { margin-bottom: 0; color: var(--muted); font-size: 18px; line-height: 1.8; }
+.side-guide { margin-top: 20px; padding-top: 17px; border-top: 1px solid var(--line); }
+.side-guide-kicker { margin-bottom: 9px; color: var(--faint); font-size: 11px; font-weight: 700; letter-spacing: .08em; }
 .side-members { margin-top: 24px; padding-top: 17px; border-top: 1px solid var(--line); }
 .side-members-label { margin-bottom: 9px; color: var(--faint); font-size: 12px; font-weight: 700; letter-spacing: .04em; }
 .side-member-list { display: flex; flex-wrap: wrap; gap: 8px; min-height: 34px; align-items: center; }
