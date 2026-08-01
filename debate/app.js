@@ -3,11 +3,10 @@ import { TOPICS, PARTICIPATION_TASKS } from "./topics.js";
 const STORAGE_KEY = "pnyl-between-sides-v3";
 const STAGES = [
   { label: "共同选题", hint: "每题都有明确的 A、B 两方。", time: "5 分钟" },
-  { label: "输入名单", hint: "至少 2 人；名单只用来随机发一张小任务。", time: "3 分钟" },
-  { label: "自由选边", hint: "选你真正支持的一方；任务可以随时换。", time: "3–5 分钟" },
+  { label: "输入名单", hint: "至少 2 人；下一步会在任务卡上选边。", time: "3 分钟" },
+  { label: "自由选边", hint: "在任务卡上选 A 或 B；之后可以换边。", time: "3–5 分钟" },
   { label: "双方陈述", hint: "围绕所选立场给理由，不另开新题。", time: "10–12 分钟" },
   { label: "回应或案例", hint: "先回应另一方；需要时再显示具体案例。", time: "10–12 分钟" },
-  { label: "回到经文", hint: "看经文分别支持或提醒了哪一方。", time: "10 分钟" },
   { label: "最后看两边", hint: "不用达成一致，只把双方立场看清楚。", time: "5 分钟" }
 ];
 
@@ -16,6 +15,7 @@ const defaultState = () => ({
   topicId: null,
   names: [],
   taskAssignments: [],
+  sideAssignments: [],
   changeIndex: 0,
   caseRevealed: false
 });
@@ -75,6 +75,27 @@ function assignmentsMatchNames() {
   );
 }
 
+function syncSideAssignments() {
+  const savedAssignments = Array.isArray(state.sideAssignments) ? state.sideAssignments : [];
+  state.sideAssignments = state.names.map(name => {
+    const saved = savedAssignments.find(item => item?.name === name && ["A", "B"].includes(item.side));
+    return { name, side: saved?.side || null };
+  });
+}
+
+function sideForName(name) {
+  return state.sideAssignments.find(item => item.name === name)?.side || null;
+}
+
+function setParticipantSide(index, side) {
+  const name = state.names[index];
+  const nextSide = side === "none" ? null : side;
+  if (!name || !["A", "B", null].includes(nextSide)) return;
+  const assignment = state.sideAssignments.find(item => item.name === name);
+  if (assignment) assignment.side = nextSide;
+  else state.sideAssignments.push({ name, side: nextSide });
+}
+
 function rerollTask(index) {
   const assignment = state.taskAssignments[index];
   if (!assignment) return;
@@ -99,18 +120,41 @@ function caseBlock(topic, compact = false) {
   </article>`;
 }
 
+function sideMembers(side) {
+  const members = state.sideAssignments.filter(item => item.side === side);
+  const targetSide = side === "A" ? "B" : "A";
+  return `<div class="side-members">
+    <div class="side-members-label">站在这一方</div>
+    <div class="side-member-list">${members.length ? members.map(member => {
+      const nameIndex = state.names.indexOf(member.name);
+      return `<span class="side-member-chip">${escapeHTML(member.name)}<button data-side-person="${nameIndex}" data-side="${targetSide}" type="button" aria-label="让 ${escapeHTML(member.name)} 换到 ${targetSide} 方">换到 ${targetSide}</button></span>`;
+    }).join("") : `<span class="side-empty">暂时还没有人</span>`}</div>
+  </div>`;
+}
+
+function unassignedRoster() {
+  const unassigned = state.sideAssignments.filter(item => item.side === null);
+  if (!unassigned.length) return "";
+  return `<div class="unassigned-roster"><strong>尚未选边</strong><div>${unassigned.map(member => {
+    const nameIndex = state.names.indexOf(member.name);
+    return `<span class="unassigned-person">${escapeHTML(member.name)}<button data-side-person="${nameIndex}" data-side="A" type="button" aria-label="让 ${escapeHTML(member.name)} 站 A 方">去 A 方</button><button data-side-person="${nameIndex}" data-side="B" type="button" aria-label="让 ${escapeHTML(member.name)} 站 B 方">去 B 方</button></span>`;
+  }).join("")}</div></div>`;
+}
+
 function sideBoard(topic, compact = false) {
-  return `<section class="side-grid ${compact ? "side-grid-compact" : ""}" aria-label="本题的两个立场">
+  return `<div class="side-board-group"><section class="side-grid ${compact ? "side-grid-compact" : ""}" aria-label="本题的两个立场">
     ${topic.tension.map((position, index) => {
       const detail = topic.considerations[index];
+      const side = index === 0 ? "A" : "B";
       return `<article class="side-card side-${index + 1}">
         <div class="side-tag mono">${index === 0 ? "A 方支持" : "B 方支持"}</div>
         <h2 class="serif">${position}</h2>
         <h3>${detail.label}</h3>
         <p>${detail.text}</p>
+        ${sideMembers(side)}
       </article>`;
     }).join("")}
-  </section>`;
+  </section>${unassignedRoster()}</div>`;
 }
 
 function optionalCase(topic, compact = false) {
@@ -130,8 +174,16 @@ function optionalCase(topic, compact = false) {
 function taskCards() {
   return `<section class="task-grid" aria-label="随机参与任务">${state.taskAssignments.map((assignment, index) => {
     const task = taskById(assignment.taskId);
-    return `<article class="task-card">
+    const side = sideForName(assignment.name);
+    return `<article class="task-card ${side ? `task-side-${side.toLowerCase()}` : ""}">
       <div class="task-card-head"><strong>${escapeHTML(assignment.name)}</strong><button class="reroll-button" data-reroll-task="${index}" type="button" aria-label="为 ${escapeHTML(assignment.name)} 换一张任务">换一张</button></div>
+      <div class="task-side-control" role="group" aria-label="为 ${escapeHTML(assignment.name)} 选择立场">
+        <div class="task-side-buttons">
+          <button class="side-choice side-choice-a" data-side-person="${index}" data-side="A" type="button" aria-pressed="${side === "A"}">站 A 方</button>
+          <button class="side-choice side-choice-b" data-side-person="${index}" data-side="B" type="button" aria-pressed="${side === "B"}">站 B 方</button>
+        </div>
+        ${side ? `<button class="clear-side" data-side-person="${index}" data-side="none" type="button">暂不选边</button>` : `<span class="side-waiting">请选择一方，也可以稍后再选</span>`}
+      </div>
       <div class="task-name">${task.name}</div>
       <p>${task.prompt}</p>
     </article>`;
@@ -171,14 +223,14 @@ function renderNames() {
 
 function renderSidesAndTasks() {
   const topic = selectedTopic();
-  app.innerHTML = `${head("CHOOSE YOUR SIDE", "先选择你真正支持的一方", "不随机分立场。看完两方后，每个人选择自己此刻更支持的一边。")}
-    <div class="principle-banner"><strong>怎么选边：</strong>人数不用平均，一边暂时没人也没关系；不要派人假装支持。讨论中可以随时换边。</div>
+  app.innerHTML = `${head("CHOOSE YOUR SIDE", "先选择你真正支持的一方", "不随机分立场。看完两方后，在每个人的任务卡上选择 A 方或 B 方。")}
+    <div class="principle-banner"><strong>怎么选边：</strong>人数不用平均，一边暂时没人也没关系；不要派人假装支持。名单会显示在对应论点下，之后可以随时换边。</div>
     ${sideBoard(topic)}
-    ${optionalCase(topic)}
     <section class="task-section">
-      <div class="section-heading"><div><div class="eyebrow mono">ONE SMALL PART</div><h2 class="serif">每个人拿一个发言任务</h2></div><p>任务只要求一个具体动作，不规定发言顺序。任务不适合就换一张，不需要解释。</p></div>
+      <div class="section-heading"><div><div class="eyebrow mono">CHOOSE & TAKE ONE PART</div><h2 class="serif">选边，并拿一个发言任务</h2></div><p>在自己的卡片上选 A 方或 B 方。任务不合适可以换一张，不需要解释。</p></div>
       ${taskCards()}
     </section>
+    ${optionalCase(topic)}
     ${topic.safety ? `<aside class="safety-note"><strong>主持提醒：</strong>${topic.safety}</aside>` : ""}`;
 }
 
@@ -211,26 +263,22 @@ function renderChanges() {
     <section class="task-reminder"><h2 class="serif">任务提醒</h2>${taskRoster()}</section>`;
 }
 
-function renderScripture() {
-  const topic = selectedTopic();
-  app.innerHTML = `${head("READ AFTER DEBATING", "现在回到经文", "先听完双方，再看经文怎样支持、限制或修正两边的理由。")}
-    <div class="principle-banner"><strong>读完每段都问：</strong>它支持了哪一方的什么理由？又提醒那一方不能把什么说得太绝对？</div>
-    <section class="scripture-list">${topic.verses.map(verse => `<article class="scripture-card"><strong class="serif">${verse.ref}</strong><p>${verse.note}</p></article>`).join("")}</section>
-    <section class="task-reminder"><h2 class="serif">任务提醒</h2>${taskRoster()}</section>`;
-}
-
 function renderSummary() {
   const topic = selectedTopic();
   app.innerHTML = `${head("TWO CLEAR SIDES", "最后把两边放在一起", "这不是标准答案，也不要求大家最后选同一边。只确认双方真正主张什么。", false)}
     ${sideBoard(topic)}`;
 }
 
-const RENDERERS = [renderTopics, renderNames, renderSidesAndTasks, renderFirstDiscussion, renderChanges, renderScripture, renderSummary];
+const RENDERERS = [renderTopics, renderNames, renderSidesAndTasks, renderFirstDiscussion, renderChanges, renderSummary];
 
 function render() {
+  if (!Array.isArray(state.names)) state.names = [];
+  if (!Array.isArray(state.taskAssignments)) state.taskAssignments = [];
+  if (state.stage === 6) state.stage = 5;
   if (!Number.isInteger(state.stage) || state.stage < 0 || state.stage >= STAGES.length) state.stage = 0;
   if (state.stage > 0 && !selectedTopic()) state.stage = 0;
   if (state.stage > 1 && state.names.length < 2) state.stage = 1;
+  syncSideAssignments();
   if (state.stage > 1 && !assignmentsMatchNames()) assignTasks();
   const topic = selectedTopic();
   if (!Number.isInteger(state.changeIndex) || state.changeIndex < 0 || (topic && state.changeIndex >= topic.changes.length)) state.changeIndex = 0;
@@ -244,14 +292,17 @@ function render() {
   backButton.disabled = state.stage === 0;
   nextButton.hidden = state.stage === STAGES.length - 1;
   nextButton.disabled = (state.stage === 0 && !state.topicId) || (state.stage === 1 && state.names.length < 2);
-  nextButton.textContent = ["输入名单 →", "自由选边 →", "开始辩论 →", "双方回应 →", "一起读经文 →", "最后看两边 →"][state.stage] || "下一步 →";
+  nextButton.textContent = ["输入名单 →", "自由选边 →", "开始辩论 →", "双方回应 →", "最后看两边 →"][state.stage] || "下一步 →";
   saveState();
 }
 
 app.addEventListener("click", event => {
   const topicButton = event.target.closest("[data-topic]");
   if (topicButton) {
-    if (state.topicId !== topicButton.dataset.topic) state.caseRevealed = false;
+    if (state.topicId !== topicButton.dataset.topic) {
+      state.caseRevealed = false;
+      state.sideAssignments = [];
+    }
     state.topicId = topicButton.dataset.topic;
     state.changeIndex = 0;
     render();
@@ -269,6 +320,13 @@ app.addEventListener("click", event => {
   const rerollButton = event.target.closest("[data-reroll-task]");
   if (rerollButton) {
     rerollTask(Number(rerollButton.dataset.rerollTask));
+    render();
+    return;
+  }
+
+  const sideButton = event.target.closest("[data-side-person]");
+  if (sideButton) {
+    setParticipantSide(Number(sideButton.dataset.sidePerson), sideButton.dataset.side);
     render();
     return;
   }
