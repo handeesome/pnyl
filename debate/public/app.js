@@ -1,6 +1,7 @@
 import { TOPICS } from "./topics.js";
 import { createSession, getHostSession, recoverHostSession, updateHostSession } from "./api.js";
 import { renderQrCode } from "./qr.js";
+import { applyDemoAction, createDemoSession } from "./demo.js";
 
 const HOST_SESSION_KEY = "pnyl-debate:host-session:v1";
 const POLL_INTERVAL = 2200;
@@ -24,6 +25,7 @@ const stageFooter = document.querySelector("#stageFooter");
 const stageHint = document.querySelector("#stageHint");
 const backButton = document.querySelector("#backButton");
 const nextButton = document.querySelector("#nextButton");
+const demoButton = document.querySelector("#demoButton");
 const showQrButton = document.querySelector("#showQrButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
 const recoverButton = document.querySelector("#recoverButton");
@@ -42,6 +44,8 @@ let requestInFlight = false;
 let caseRevealed = false;
 let changeIndex = 0;
 let topicSelectionOpen = false;
+let demoMode = false;
+let demoBaseSession = null;
 
 function loadAuth() {
   try {
@@ -99,6 +103,14 @@ function stageHead(kicker, title, lede) {
   </header>`;
 }
 
+function demoBanner() {
+  return `<section class="demo-banner" role="status">
+    <span class="demo-chip mono">DEMO</span>
+    <div><strong>你正在预览完整流程</strong><p>示例票数和昵称只在这台电脑显示，不会改变真实房间。</p></div>
+    <div class="demo-banner-actions"><button class="ghost-button" data-restart-demo type="button">从头演示</button><button class="soft-button" data-leave-demo type="button">退出演示</button></div>
+  </section>`;
+}
+
 function renderLobby(data) {
   const selectingTopic = topicSelectionOpen;
   const counts = data.preferenceCounts || Object.fromEntries(TOPICS.map((topic) => [topic.id, 0]));
@@ -108,9 +120,17 @@ function renderLobby(data) {
 
   app.innerHTML = `${selectingTopic
     ? stageHead("HOST PICKS THE QUESTION", "主持人，今晚选哪一题？", "匿名投票已经汇总。票数提供参考，最终由主持人点击决定今晚真正进入的辩论题目。")
-    : stageHead("ANONYMOUS TOPIC PICK", "今晚最想辩哪一题？", "这是匿名选择。现在只多选你感兴趣的辩论题目，不需要填写昵称；等人数到齐后，主持人点击下一步进入主题选择。")}
+    : demoMode
+      ? stageHead("DEMO TOPIC PICK", "先看演示票数怎么汇总", "这里放入了八份示例投票。点击底部“进入主题选择”，就能继续预览后面的流程。")
+      : stageHead("ANONYMOUS TOPIC PICK", "今晚最想辩哪一题？", "这是匿名选择。现在只多选你感兴趣的辩论题目，不需要填写昵称；等人数到齐后，主持人点击下一步进入主题选择。")}
     <div class="lobby-layout">
-      <aside class="scan-panel">
+      ${demoMode ? `<aside class="scan-panel demo-scan-panel">
+        <div class="scan-kicker mono">READY TO PREVIEW</div>
+        <div class="demo-vote-count"><strong class="serif">${data.voteCount}</strong><span>份示例投票</span></div>
+        <p class="scan-copy">系统也准备了八位虚拟参与者。选题后，他们会自动出现在两边的队伍中。</p>
+        <div class="demo-preview-avatars" aria-label="虚拟参与者">${data.participants.map((participant) => avatar(participant, true)).join("")}</div>
+        <div class="demo-preview-note"><strong>${data.participants.length} 位虚拟参与者</strong><span>不会写入真实房间</span></div>
+      </aside>` : `<aside class="scan-panel">
         <div class="scan-kicker mono">SCAN TO VOTE</div>
         <div id="qrCode" class="qr-frame" aria-label="参与者加入二维码"></div>
         <p class="scan-copy">扫码匿名选择辩论题目。定题以后，手机才会请你填写昵称并站队。</p>
@@ -122,7 +142,7 @@ function renderLobby(data) {
         </div>
         <div class="manual-code"><span>房间码</span><strong class="mono">${escapeHTML(auth.room)}</strong></div>
         <div class="joined-summary"><strong class="serif">${data.voteCount}</strong><span>份匿名选择</span></div>
-      </aside>
+      </aside>`}
       <section class="preference-board" aria-label="辩论题目兴趣排名">
         <div class="board-heading">
           <div><span class="eyebrow mono">LIVE RESULTS</span><h2 class="serif">大家想辩的题目</h2></div>
@@ -146,7 +166,8 @@ function renderLobby(data) {
         </div>
       </section>
     </div>`;
-  renderQrCode(document.querySelector("#qrCode"), joinUrl());
+  const qrCode = document.querySelector("#qrCode");
+  if (qrCode) renderQrCode(qrCode, joinUrl());
 }
 
 function sideBoard(topic, participants, showGuides = false) {
@@ -223,7 +244,7 @@ function renderCurrent() {
   progressLabel.textContent = `${String(phaseIndex + 1).padStart(2, "0")} / ${String(PHASES.length).padStart(2, "0")} · ${info.label}`;
   progressBar.style.width = `${((phaseIndex + 1) / PHASES.length) * 100}%`;
   participantCount.textContent = phase === "interests" ? `${voteCount} 份匿名选择` : `${participants.length} 人`;
-  roomCode.textContent = `ROOM ${session.room}`;
+  roomCode.textContent = demoMode ? "DEMO MODE" : `ROOM ${session.room}`;
   stageHint.textContent = phase === "sides" && session.tasksAssigned
     ? "任务已经发放；准备好后开始辩论。"
     : info.hint;
@@ -233,8 +254,16 @@ function renderCurrent() {
   else if (!topic) renderFatal("房间缺少有效辩论题目，请开始新一局。");
   else if (phase === "sides") renderSides(sessionData, topic);
   else renderDiscussion(sessionData, topic, phase);
+  if (demoMode) app.insertAdjacentHTML("afterbegin", demoBanner());
 
   stageFooter.hidden = false;
+  demoButton.disabled = false;
+  demoButton.textContent = demoMode ? "退出演示" : "演示流程";
+  demoButton.classList.toggle("is-active", demoMode);
+  demoButton.setAttribute("aria-pressed", String(demoMode));
+  showQrButton.disabled = demoMode;
+  showQrButton.title = demoMode ? "退出演示后可以显示真实房间二维码" : "";
+  resetButton.textContent = demoMode ? "重新演示" : "新一局";
   backButton.hidden = phase === "interests" && !topicSelectionOpen;
   backButton.disabled = phase === "sides";
   nextButton.hidden = phase === "summary" || (phase === "interests" && topicSelectionOpen);
@@ -252,6 +281,8 @@ function renderFatal(message) {
 
 async function establishRoom(forceNew = false) {
   setConnection(false, "CONNECTING");
+  demoMode = false;
+  demoBaseSession = null;
   if (forceNew) {
     localStorage.removeItem(HOST_SESSION_KEY);
     auth = null;
@@ -288,7 +319,7 @@ async function establishRoom(forceNew = false) {
 }
 
 async function refresh() {
-  if (!auth || requestInFlight) return;
+  if (!auth || requestInFlight || demoMode) return;
   requestInFlight = true;
   try {
     const latest = await getHostSession(auth.room, auth.hostToken);
@@ -313,6 +344,12 @@ function startPolling() {
 }
 
 async function hostAction(action, value = {}) {
+  if (demoMode) {
+    sessionData = applyDemoAction(sessionData, action, value);
+    renderCurrent();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
   if (!auth || requestInFlight) return;
   requestInFlight = true;
   try {
@@ -322,6 +359,54 @@ async function hostAction(action, value = {}) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   } finally {
     requestInFlight = false;
+  }
+}
+
+function enterDemoMode() {
+  if (!sessionData || demoMode) return;
+  clearInterval(pollTimer);
+  demoBaseSession = { ...sessionData.session };
+  demoMode = true;
+  topicSelectionOpen = false;
+  caseRevealed = false;
+  changeIndex = 0;
+  sessionData = createDemoSession(demoBaseSession);
+  setConnection(true, "DEMO");
+  renderCurrent();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function restartDemoMode() {
+  if (!demoMode) return;
+  topicSelectionOpen = false;
+  caseRevealed = false;
+  changeIndex = 0;
+  sessionData = createDemoSession(demoBaseSession || sessionData.session);
+  renderCurrent();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function exitDemoMode() {
+  if (!demoMode || !auth || requestInFlight) return;
+  requestInFlight = true;
+  demoButton.disabled = true;
+  setConnection(false, "CONNECTING");
+  try {
+    const latest = await getHostSession(auth.room, auth.hostToken);
+    demoMode = false;
+    demoBaseSession = null;
+    topicSelectionOpen = false;
+    sessionData = latest;
+    setConnection(true);
+    renderCurrent();
+    startPolling();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    setConnection(false, "RETRYING");
+    window.alert(error.message || "暂时无法返回真实房间，请稍后再试。");
+  } finally {
+    requestInFlight = false;
+    demoButton.disabled = false;
   }
 }
 
@@ -342,6 +427,14 @@ function openRecoveryDialog() {
 }
 
 app.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-leave-demo]")) {
+    await exitDemoMode();
+    return;
+  }
+  if (event.target.closest("[data-restart-demo]")) {
+    restartDemoMode();
+    return;
+  }
   const topicButton = event.target.closest("[data-select-topic]");
   if (topicButton) {
     caseRevealed = false;
@@ -431,6 +524,8 @@ recoverForm.addEventListener("submit", async (event) => {
     const recovered = await recoverHostSession(room, recoveryCode);
     auth = { room: recovered.room, hostToken: recovered.hostToken };
     saveAuth();
+    demoMode = false;
+    demoBaseSession = null;
     sessionData = await getHostSession(auth.room, auth.hostToken);
     recoverDialog.hidden = true;
     setConnection(true);
@@ -457,7 +552,16 @@ document.addEventListener("fullscreenchange", () => {
   fullscreenButton.textContent = document.fullscreenElement ? "退出全屏" : "全屏";
 });
 
+demoButton.addEventListener("click", async () => {
+  if (demoMode) await exitDemoMode();
+  else enterDemoMode();
+});
+
 resetButton.addEventListener("click", () => {
+  if (demoMode) {
+    restartDemoMode();
+    return;
+  }
   resetError.hidden = true;
   confirmDialog.hidden = false;
   document.querySelector("#cancelReset").focus();
