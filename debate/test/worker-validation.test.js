@@ -15,7 +15,7 @@ test("normalizes valid nicknames and rejects invisible or oversized names", () =
 });
 
 test("accepts one or more unique topic preferences", () => {
-  assert.deepEqual(normalizePreferences(["accept-or-confront", "pray-or-release"]), ["accept-or-confront", "pray-or-release"]);
+  assert.deepEqual(normalizePreferences(["peace-or-decide", "pray-or-release"]), ["peace-or-decide", "pray-or-release"]);
   assert.throws(() => normalizePreferences([]));
   assert.throws(() => normalizePreferences(["not-a-topic"]));
   assert.throws(() => normalizePreferences(["pray-or-release", "pray-or-release"]));

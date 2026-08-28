@@ -20,6 +20,15 @@ test("ships exactly ten two-sided faith debate topics", () => {
   const workTopic = TOPICS.find((topic) => topic.id === "sunday-overtime");
   assert.ok(workTopic, "the adult work-and-faith topic should be present");
   assert.match(workTopic.title, /工作|加班|升职/);
+
+  const replacementIds = [
+    "peace-or-decide",
+    "private-or-public-conflict",
+    "invite-or-respect-silence",
+    "accept-loss-or-advocate",
+    "persist-or-pause-service"
+  ];
+  assert.ok(replacementIds.every((topicId) => TOPICS.some((topic) => topic.id === topicId)));
 });
 
 test("keeps hidden tasks suitable for the private phone view", () => {

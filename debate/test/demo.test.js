@@ -11,13 +11,13 @@ test("creates a balanced local demo without changing the real session", () => {
   assert.equal(demo.participants.length, 8);
   assert.equal(demo.participants.filter((person) => person.side === "A").length, 4);
   assert.equal(demo.participants.filter((person) => person.side === "B").length, 4);
-  assert.equal(demo.preferenceCounts["accept-or-confront"], 5);
+  assert.equal(demo.preferenceCounts["peace-or-decide"], 5);
   assert.equal(realSession.topicId, undefined);
 });
 
 test("walks through topic selection, task release, and every discussion phase", () => {
   let demo = createDemoSession({ room: "ABC234" });
-  demo = applyDemoAction(demo, "select-topic", { topicId: "accept-or-confront" });
+  demo = applyDemoAction(demo, "select-topic", { topicId: "peace-or-decide" });
   assert.equal(demo.session.phase, "sides");
   assert.equal(demo.session.tasksAssigned, false);
 

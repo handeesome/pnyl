@@ -1,14 +1,14 @@
 import { TOPICS } from "./topics.js";
 
 const DEMO_PREFERENCES = Object.freeze([
-  ["accept-or-confront", "pray-or-release", "sunday-overtime"],
-  ["accept-or-confront", "stay-or-leave-church", "forgive-or-reconnect"],
-  ["accept-or-confront", "giving-or-pause", "truth-or-relationship"],
-  ["accept-or-confront", "lead-in-doubt", "baptism-or-wait"],
-  ["pray-or-release", "share-or-stop", "stay-or-leave-church"],
+  ["peace-or-decide", "pray-or-release", "sunday-overtime"],
+  ["peace-or-decide", "private-or-public-conflict", "accept-loss-or-advocate"],
+  ["peace-or-decide", "giving-or-pause", "truth-or-relationship"],
+  ["peace-or-decide", "invite-or-respect-silence", "persist-or-pause-service"],
+  ["pray-or-release", "share-or-stop", "private-or-public-conflict"],
   ["sunday-overtime", "giving-or-pause", "truth-or-relationship"],
-  ["share-or-stop", "forgive-or-reconnect", "baptism-or-wait"],
-  ["accept-or-confront", "sunday-overtime", "stay-or-leave-church"]
+  ["share-or-stop", "accept-loss-or-advocate", "persist-or-pause-service"],
+  ["peace-or-decide", "sunday-overtime", "private-or-public-conflict"]
 ]);
 
 const DEMO_PEOPLE = Object.freeze([
