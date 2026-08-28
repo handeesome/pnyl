@@ -22,8 +22,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "church-untold",
-      "database_id": "4ac42d9e-bd2f-406c-86b7-47a7f224824d"
+      "database_name": "pnyl-debate",
+      "database_id": "22a62aab-77d0-4e56-be8d-96ef92891bf4"
     }
   ],
   "triggers": {

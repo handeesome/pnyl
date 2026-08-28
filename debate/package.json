@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "node --test",
-    "db:local": "wrangler d1 execute church-untold --local --file=./schema.sql",
-    "db:remote": "wrangler d1 execute church-untold --remote --file=./schema.sql",
+    "db:local": "wrangler d1 execute pnyl-debate --local --file=./schema.sql",
+    "db:remote": "wrangler d1 execute pnyl-debate --remote --file=./schema.sql",
     "deploy": "wrangler deploy"
   },
   "devDependencies": {

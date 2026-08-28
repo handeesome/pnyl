@@ -65,7 +65,7 @@
 
 ## 本地运行
 
-当前项目复用已配置的 `church-untold` D1 数据库，但使用四张独立的 `debate_*` 数据表，不会读写归档活动的数据。
+当前项目使用独立的 `pnyl-debate` D1 数据库和四张 `debate_*` 数据表，不会读写其他活动的数据。
 
     cd C:\Users\ducenhan\Desktop\信仰大富翁\debate
     npm install
@@ -88,7 +88,7 @@ Wrangler 默认会显示本地地址。打开主持页后，用同一网络可�
     npx wrangler secret put HOST_RECOVERY_CODE
     npm run deploy
 
-`wrangler.jsonc` 已配置 `debate.ducenhan.com` 自定义域名，并复用现有 D1 database id。根目录 PNYL 首页已把这个地址放在导航与活动列表的第一项。
+`wrangler.jsonc` 已配置 `debate.ducenhan.com` 自定义域名和独立 D1 database id。根目录 PNYL 首页已把这个地址放在导航与活动列表的第一项。
 
 ## 现场带领提醒
 
