@@ -115,7 +115,12 @@ function renderLobby(data) {
         <div id="qrCode" class="qr-frame" aria-label="参与者加入二维码"></div>
         <p class="scan-copy">扫码匿名选择辩论题目。定题以后，手机才会请你填写昵称并站队。</p>
         <div class="anonymous-badge"><span aria-hidden="true">◎</span><strong>不收集昵称</strong><small>每份选择只计入题目总数</small></div>
-        <div class="manual-code"><span>扫码不方便？输入房间码</span><strong class="mono">${escapeHTML(auth.room)}</strong></div>
+        <div class="manual-join">
+          <span>扫码不方便？手机打开</span>
+          <strong class="join-address">debate.ducenhan.com/join</strong>
+          <small>再输入六位房间码</small>
+        </div>
+        <div class="manual-code"><span>房间码</span><strong class="mono">${escapeHTML(auth.room)}</strong></div>
         <div class="joined-summary"><strong class="serif">${data.voteCount}</strong><span>份匿名选择</span></div>
       </aside>
       <section class="preference-board" aria-label="辩论题目兴趣排名">
