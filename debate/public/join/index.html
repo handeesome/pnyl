@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f5efe4">
+  <meta name="robots" content="noindex">
+  <title>加入「两边之间」</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="mobile-bar">
+    <div>
+      <span class="brand serif">两边之间</span>
+      <span class="mono">JOIN THE ROOM</span>
+    </div>
+    <div class="mobile-status"><i id="statusDot" class="status-dot is-offline"></i><span id="statusLabel" class="mono">CONNECTING</span></div>
+  </header>
+  <main id="mobileApp" class="mobile-app" aria-live="polite">
+    <section class="loading-state"><span class="spinner"></span><p>正在进入房间…</p></section>
+  </main>
+  <noscript>这个页面需要启用 JavaScript。</noscript>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

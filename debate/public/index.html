@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="两边之间：扫码选题、自由站队，把信仰问题的两边都说清楚。">
+  <meta name="theme-color" content="#f5efe4">
+  <title>两边之间｜团契辩论</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="https://pnyl.netlify.app/" aria-label="返回 PNYL 首页">
+        <span class="brand-title serif">两边之间</span>
+        <span class="brand-subtitle mono">FAITH ON BOTH SIDES</span>
+      </a>
+      <div class="progress-wrap" aria-label="活动进度">
+        <div id="progressLabel" class="progress-label mono">正在建立房间</div>
+        <div class="progress-track"><span id="progressBar"></span></div>
+      </div>
+      <div class="top-status">
+        <span id="connectionDot" class="connection-dot is-offline" aria-hidden="true"></span>
+        <span id="connectionLabel" class="mono">CONNECTING</span>
+        <span id="participantCount">0 人</span>
+        <span id="roomCode" class="room-code mono"></span>
+      </div>
+      <div class="top-actions">
+        <button id="showQrButton" class="ghost-button" type="button">显示二维码</button>
+        <button id="fullscreenButton" class="ghost-button" type="button">全屏</button>
+        <button id="recoverButton" class="ghost-button" type="button">恢复房间</button>
+        <button id="resetButton" class="ghost-button danger-text" type="button">新一局</button>
+      </div>
+    </header>
+
+    <main id="app" class="page" aria-live="polite">
+      <section class="loading-state">
+        <div class="loading-mark" aria-hidden="true"></div>
+        <h1 class="serif">正在建立今晚的房间…</h1>
+      </section>
+    </main>
+
+    <footer id="stageFooter" class="stage-footer" aria-label="活动导航" hidden>
+      <button id="backButton" class="soft-button" type="button">← 上一步</button>
+      <div id="stageHint" class="footer-hint"></div>
+      <button id="nextButton" class="ink-button" type="button">下一步 →</button>
+    </footer>
+  </div>
+
+  <div id="qrDialog" class="dialog-backdrop" hidden>
+    <section class="dialog qr-dialog" role="dialog" aria-modal="true" aria-labelledby="qrDialogTitle">
+      <div class="dialog-heading-row">
+        <div><div class="eyebrow mono">SCAN TO JOIN</div><h2 id="qrDialogTitle" class="serif">扫码加入今晚的辩论</h2></div>
+        <button id="closeQrDialog" class="ghost-button" type="button">关闭</button>
+      </div>
+      <div id="dialogQrCode" class="qr-frame" aria-label="参与者加入二维码"></div>
+      <div class="dialog-room-code"><span>房间码</span><strong id="dialogRoomCode" class="mono"></strong></div>
+    </section>
+  </div>
+
+  <div id="recoverDialog" class="dialog-backdrop" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="recoverTitle">
+      <div class="eyebrow mono">RECOVER HOST ACCESS</div>
+      <h2 id="recoverTitle" class="serif">恢复已有房间</h2>
+      <p>输入仍在有效期内的房间码和管理员恢复码。这会让当前电脑成为新的主持端。</p>
+      <form id="recoverForm" class="recover-form">
+        <label for="recoverRoom">六位房间码</label>
+        <input id="recoverRoom" name="room" maxlength="6" autocomplete="off" autocapitalize="characters" required>
+        <label for="recoveryCode">管理员恢复码</label>
+        <input id="recoveryCode" name="recoveryCode" type="password" autocomplete="current-password" required>
+        <div id="recoverError" class="form-error" hidden></div>
+        <div class="dialog-actions">
+          <button id="cancelRecover" class="soft-button" type="button">取消</button>
+          <button id="confirmRecover" class="ink-button" type="submit">恢复房间</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="confirmDialog" class="dialog-backdrop" hidden>
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="eyebrow mono">NEW SESSION</div>
+      <h2 id="confirmTitle" class="serif">确定开始新一局吗？</h2>
+      <p>现在的昵称、兴趣票、站队和手机任务都会被清除。这一步不能撤销。</p>
+      <div id="resetError" class="form-error" hidden></div>
+      <div class="dialog-actions">
+        <button id="cancelReset" class="soft-button" type="button">保留这一局</button>
+        <button id="confirmReset" class="danger-button" type="button">清除并重新开始</button>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

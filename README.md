@@ -5,6 +5,7 @@
 ## 访问链接
 
 - 主入口：https://pnyl.netlify.app/
+- 两边之间：https://debate.ducenhan.com/
 - 愛之語線上測驗：https://pnyl.netlify.app/5lovelanguages/
 - 教会团契大富翁：https://pnyl.netlify.app/monopoly/
 - 认识团契的弟兄姊妹：https://pnyl.netlify.app/jeopardy/
@@ -31,6 +32,10 @@
 “教会里那些大家都懂，但平常不太讲的事”匿名互动页面。活动期间由 Cloudflare Workers Static Assets + D1 提供手机答题、投影揭晓和匿名数据清理；活动结束后，Cloudflare 服务已下线，完整源代码继续保留在本仓库。
 
 PNYL 主入口现在连接到不依赖 API 的只读静态演示。演示内置 7 份示例结果，可查看揭晓流程和 AI 回答，但不会收集或保存新答案。
+
+### `debate/`
+
+「两边之间」团契辩论页面。参与者先扫码匿名多选感兴趣的信仰辩题，投影只实时汇总每题总数；人数到齐后主持人点击下一步进入主题选择。定题后，手机才收集昵称并让每个人一次性选择 A／B 立场。主持人确认站队完成后统一发放隐藏任务，参与者点击才会揭晓。投影端只显示双方题目和圆形昵称头像。多人房间使用 Cloudflare Worker + D1，数据会在 6 小时后自动清理。
 
 ## 其他文件
 

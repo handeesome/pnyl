@@ -1,0 +1,2 @@
+# Keep the real recovery code in .dev.vars locally and as a Cloudflare Secret in production.
+HOST_RECOVERY_CODE=replace-with-a-private-code
