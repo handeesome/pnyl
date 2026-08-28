@@ -270,17 +270,17 @@ export const HIDDEN_TASKS = [
   {
     id: "name-the-cost",
     title: "本方拆台员",
-    prompt: "至少有一次，主动说出你支持的这一方最真实的代价或风险。"
+    prompt: "至少三次，主动指出自己这一方的一个弱点，或说出一个还需要再想一想的地方。"
   },
   {
     id: "ask-before-answer",
     title: "追问员",
-    prompt: "至少有一次，只向另一方问一个真正想听答案的问题，先不要反驳。"
+    prompt: "至少三次，向另一方提出一个你真的想听答案的问题。不要反问，也不要用问题攻击对方。"
   },
   {
     id: "best-version",
-    title: "最强反方翻译",
-    prompt: "第一次回应另一方以前，先用一句话把对方的理由说到让对方点头。"
+    title: "对方总结员",
+    prompt: "至少三次，在回应前先用自己的话总结对方刚才的意思。尽量总结到让对方觉得：『对，我就是这个意思。』"
   },
   {
     id: "concrete-example",
@@ -293,6 +293,6 @@ export function supportTask(targetName) {
   return {
     id: "support-teammate",
     title: "神队友",
-    prompt: `每当 ${targetName} 发表意见后，尽量第一个接话说：『我觉得 TA 说得对，因为……』`
+    prompt: `每当 ${targetName} 发表意见后，表达一次赞赏。可以说『TA 说得对』『这说得太好了』，也可以用你自己的方式，不需要固定句式。`
   };
 }

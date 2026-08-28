@@ -35,9 +35,15 @@ test("keeps hidden tasks suitable for the private phone view", () => {
   assert.equal(HIDDEN_TASKS.length, 5);
   assert.equal(new Set(HIDDEN_TASKS.map((task) => task.id)).size, HIDDEN_TASKS.length);
   assert.ok(HIDDEN_TASKS.every((task) => task.title && task.prompt));
+  for (const taskId of ["name-the-cost", "ask-before-answer", "best-version"]) {
+    assert.match(HIDDEN_TASKS.find((task) => task.id === taskId).prompt, /至少三次/);
+  }
+  assert.match(HIDDEN_TASKS.find((task) => task.id === "ask-before-answer").prompt, /不要反问/);
+  assert.match(HIDDEN_TASKS.find((task) => task.id === "best-version").prompt, /总结对方/);
 
   const support = supportTask("小明");
   assert.equal(support.id, "support-teammate");
   assert.match(support.prompt, /小明/);
-  assert.match(support.prompt, /我觉得 TA 说得对/);
+  assert.match(support.prompt, /表达一次赞赏/);
+  assert.match(support.prompt, /不需要固定句式/);
 });
